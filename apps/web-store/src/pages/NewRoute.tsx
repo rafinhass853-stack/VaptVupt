@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions, db } from "../lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useStore } from "../context/StoreContext";
 import {
   MapPin,
@@ -43,7 +43,7 @@ export default function NewRoute() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-    // Carrega as configurações de preço E o endereço da loja
+  // Carrega as configurações de preço E o endereço da loja
   useEffect(() => {
     (async () => {
       const snap = await getDoc(doc(db, "settings", "pricing"));
@@ -110,7 +110,9 @@ export default function NewRoute() {
     const totalFee = calculateFee();
     if (store.balance < totalFee) {
       setError(
-        `Saldo insuficiente. Necessário: R$ ${totalFee.toFixed(2)} | Disponível: R$ ${store.balance.toFixed(2)}`
+        `Saldo insuficiente. Necessário: R$ ${totalFee.toFixed(
+          2
+        )} | Disponível: R$ ${store.balance.toFixed(2)}`
       );
       return;
     }
@@ -118,6 +120,12 @@ export default function NewRoute() {
     setLoading(true);
     try {
       const createDelivery = httpsCallable(functions, "createDeliveryOrder");
+
+      // Idempotência: evita criar 2 pedidos se o usuário clicar 2x
+      const idempotencyKey = `${store.id}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+
       const result = await createDelivery({
         storeId: store.id,
         stops: stops.map((s) => ({
@@ -129,11 +137,20 @@ export default function NewRoute() {
           lng: -46.6565,
         })),
         totalDistanceKm: distanceKm,
+        idempotencyKey,
       });
 
-      const data = result.data as { orderId: string; totalFee: number };
+      const data = result.data as {
+        orderId: string;
+        totalFee: number;
+        idempotent?: boolean;
+      };
+
       setSuccess(
-        `Rota criada! Pedido #${data.orderId.slice(0, 8)} | Cobrado: R$ ${data.totalFee.toFixed(2)}`
+        `${data.idempotent ? "Rota já existente" : "Rota criada"}! Pedido #${data.orderId.slice(
+          0,
+          8
+        )} | Cobrado: R$ ${data.totalFee.toFixed(2)}`
       );
 
       // Reset
@@ -155,7 +172,9 @@ export default function NewRoute() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Nova Rota de Entrega</h1>
+        <h1 className="text-3xl font-bold text-gray-800">
+          Nova Rota de Entrega
+        </h1>
         <p className="text-gray-500 mt-1">
           Adicione as paradas e nós cuidamos do resto
         </p>
@@ -280,8 +299,8 @@ export default function NewRoute() {
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
         />
         <p className="text-xs text-gray-500 mt-2">
-          💡 Em produção, esta distância será calculada automaticamente via Google
-          Maps API
+          💡 Em produção, esta distância será calculada automaticamente via
+          Google Maps API
         </p>
       </div>
 
@@ -299,7 +318,8 @@ export default function NewRoute() {
           </div>
           <div className="flex justify-between text-gray-600">
             <span>
-              KM adicional ({Math.max(0, distanceKm - pricing.baseKm).toFixed(1)} km)
+              KM adicional (
+              {Math.max(0, distanceKm - pricing.baseKm).toFixed(1)} km)
             </span>
             <span>
               R${" "}

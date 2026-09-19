@@ -1,10 +1,151 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // DESENVOLVIMENTO: liberar tudo
-    // ⚠️ TROCAR ANTES DE PRODUÇÃO
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isStoreOwner(storeId) {
+      return isAuthenticated() 
+        && request.auth.token.role == 'store'
+        && request.auth.token.storeId == storeId;
+    }
+
+    function isDriver() {
+      return isAuthenticated() && request.auth.token.role == 'driver';
+    }
+
+    function isOwnDriver(driverId) {
+      return isAuthenticated() && request.auth.uid == driverId;
+    }
+
+    // ============================================
+    // STORES
+    // ============================================
+    match /stores/{storeId} {
+      // Leitura: próprio dono, admin, ou qualquer autenticado (para exibir nome no pedido)
+      allow read: if isAuthenticated();
+
+      // Criação: somente admin
+      allow create: if isAdmin();
+
+      // Update: o próprio dono (SEM alterar balance/uid) ou admin
+      allow update: if (isAdmin()) 
+        || (isStoreOwner(storeId) 
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['balance', 'uid']));
+
+      // Delete: somente admin
+      allow delete: if isAdmin();
+    }
+
+    // ============================================
+    // DRIVERS
+    // ============================================
+    match /drivers/{driverId} {
+      allow read: if isAuthenticated();
+
+      // Criação: o próprio driver (auto-cadastro) ou admin
+      allow create: if isOwnDriver(driverId) || isAdmin();
+
+      // Update: 
+      //   - o próprio driver pode alterar seus dados pessoais e status operacional
+      //   - NÃO pode alterar: approved, blocked, blockReason, rating, totalDeliveries (campos de admin)
+      allow update: if isAdmin() 
+        || (isOwnDriver(driverId) 
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'approved', 'blocked', 'blockReason', 'rating', 'totalDeliveries',
+              'acceptanceRate', 'cancellationRate', 'createdAt'
+            ]));
+
+      allow delete: if isAdmin();
+    }
+
+    // ============================================
+    // ORDERS
+    // ============================================
+    match /orders/{orderId} {
+      // Leitura: 
+      //   - admin
+      //   - loja dona
+      //   - motorista designado
+      allow read: if isAuthenticated() && (
+        isAdmin()
+        || (resource.data.storeId != null 
+            && isStoreOwner(resource.data.storeId))
+        || (resource.data.assignedDriverId == request.auth.uid)
+        // Motorista pode ver pedidos em oferta se estiver na lista (matching)
+        || (resource.data.status == 'OFFERED' && resource.data.assignedDriverId == request.auth.uid)
+      );
+
+      // Criação: apenas via Cloud Function (admin SDK ignora rules)
+      allow create: if false;
+
+      // Update: motorista pode mudar apenas status operacionais específicos
+      allow update: if isAdmin()
+        || (isDriver() 
+            && resource.data.assignedDriverId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'collectedAt', 'deliveredAt', 'deliveryProofUrl', 'statusHistory'])
+            && isValidStatusTransition(resource.data.status, request.resource.data.status));
+
+      allow delete: if isAdmin();
+    }
+
+    // Validação de transição de status
+    function isValidStatusTransition(from, to) {
+      let valid = {
+        'ACCEPTED': ['ARRIVING_PICKUP', 'COLLECTED'],
+        'ARRIVING_PICKUP': ['COLLECTED'],
+        'COLLECTED': ['IN_DELIVERY', 'ARRIVING_DESTINATION', 'DELIVERED'],
+        'IN_DELIVERY': ['ARRIVING_DESTINATION', 'DELIVERED'],
+        'ARRIVING_DESTINATION': ['DELIVERED']
+      };
+      return to in valid[from];
+    }
+
+    // ============================================
+    // TRANSACTIONS (imutáveis)
+    // ============================================
+    match /transactions/{transactionId} {
+      // Leitura: admin ou loja dona da transação
+      allow read: if isAdmin() 
+        || (resource.data.storeId != null 
+            && isStoreOwner(resource.data.storeId));
+
+      // Escrita: somente Cloud Functions (Admin SDK)
+      allow write: if false;
+    }
+
+    // ============================================
+    // SETTINGS
+    // ============================================
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ============================================
+    // AUDIT LOG (append-only)
+    // ============================================
+    match /audit/{auditId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // ============================================
+    // DEFAULT: deny all
+    // ============================================
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
