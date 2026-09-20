@@ -8,6 +8,7 @@ import {
   Vibration,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { theme } from "../theme";
 
 export interface OfferData {
   orderId: string;
@@ -17,6 +18,7 @@ export interface OfferData {
   pickupAddress: string;
   deliveryAddress: string;
   stopsCount: number;
+  totalOrderValue?: number;
 }
 
 interface OfferModalProps {
@@ -41,8 +43,6 @@ export default function OfferModal({
     if (visible && offer) {
       setTimeLeft(30);
       setAccepting(false);
-
-      // Vibração de alerta (3 pulsos)
       Vibration.vibrate([0, 500, 200, 500, 200, 500]);
 
       timer = setInterval(() => {
@@ -64,7 +64,8 @@ export default function OfferModal({
 
   if (!offer) return null;
 
-  const timerColor = timeLeft <= 5 ? "#ef4444" : timeLeft <= 15 ? "#f59e0b" : "#10b981";
+  const timerColor =
+    timeLeft <= 5 ? "#ef4444" : timeLeft <= 15 ? "#f59e0b" : "#10b981";
 
   const handleAccept = () => {
     setAccepting(true);
@@ -91,16 +92,21 @@ export default function OfferModal({
             </View>
           </View>
 
-          {/* Valor */}
+          {/* Fee */}
           <View style={styles.feeContainer}>
-            <Text style={styles.feeLabel}>Valor do frete</Text>
+            <Text style={styles.feeLabel}>Você vai receber</Text>
             <Text style={styles.feeValue}>R$ {offer.totalFee.toFixed(2)}</Text>
+            {offer.totalOrderValue ? (
+              <Text style={styles.feeSubtext}>
+                + R$ {offer.totalOrderValue.toFixed(2)} em produtos
+              </Text>
+            ) : null}
           </View>
 
-          {/* Info cards */}
+          {/* Stats */}
           <View style={styles.infoRow}>
             <View style={styles.infoCard}>
-              <Ionicons name="navigate" size={22} color="#3b82f6" />
+              <Ionicons name="navigate" size={22} color={theme.colors.info} />
               <Text style={styles.infoValue}>{offer.distanceKm.toFixed(1)} km</Text>
               <Text style={styles.infoLabel}>Distância</Text>
             </View>
@@ -113,10 +119,10 @@ export default function OfferModal({
             </View>
           </View>
 
-          {/* Rota */}
+          {/* Route */}
           <View style={styles.routeBox}>
             <View style={styles.routeItem}>
-              <View style={[styles.routeDot, { backgroundColor: "#3b82f6" }]} />
+              <View style={[styles.routeDot, { backgroundColor: theme.colors.info }]} />
               <View style={styles.routeTextContainer}>
                 <Text style={styles.routeLabel}>COLETA</Text>
                 <Text style={styles.routeAddress} numberOfLines={2}>
@@ -126,7 +132,7 @@ export default function OfferModal({
             </View>
             <View style={styles.routeLine} />
             <View style={styles.routeItem}>
-              <View style={[styles.routeDot, { backgroundColor: "#10b981" }]} />
+              <View style={[styles.routeDot, { backgroundColor: theme.colors.brand }]} />
               <View style={styles.routeTextContainer}>
                 <Text style={styles.routeLabel}>ENTREGA</Text>
                 <Text style={styles.routeAddress} numberOfLines={2}>
@@ -136,7 +142,7 @@ export default function OfferModal({
             </View>
           </View>
 
-          {/* Botões */}
+          {/* Buttons */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.button, styles.rejectButton]}
@@ -150,8 +156,9 @@ export default function OfferModal({
               onPress={handleAccept}
               disabled={accepting}
             >
+              <Ionicons name="checkmark-circle" size={20} color="#fff" />
               <Text style={styles.acceptText}>
-                {accepting ? "Aceitando..." : "Aceitar Rota"}
+                {accepting ? "Aceitando..." : "Aceitar"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -164,7 +171,7 @@ export default function OfferModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
+    backgroundColor: "rgba(0,0,0,0.85)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
@@ -172,25 +179,27 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.bgCard,
     borderRadius: 24,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   header: {
-    backgroundColor: "#0f172a",
+    backgroundColor: theme.colors.bg,
     padding: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   headerLabel: {
-    color: "#64748b",
+    color: theme.colors.textMuted,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1,
   },
   headerStore: {
-    color: "#fff",
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 4,
@@ -200,87 +209,65 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  timerText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 18,
-  },
+  timerText: { color: "#fff", fontWeight: "bold", fontSize: 18 },
   feeContainer: {
-    padding: 20,
+    padding: 24,
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: theme.colors.border,
   },
   feeLabel: {
-    color: "#64748b",
+    color: theme.colors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
   },
   feeValue: {
-    color: "#10b981",
-    fontSize: 42,
+    color: theme.colors.brand,
+    fontSize: 44,
     fontWeight: "bold",
     marginTop: 4,
   },
-  infoRow: {
-    flexDirection: "row",
-    padding: 16,
-    gap: 12,
+  feeSubtext: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
   },
+  infoRow: { flexDirection: "row", padding: 16, gap: 12 },
   infoCard: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: theme.colors.bg,
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
   },
   infoValue: {
-    color: "#0f172a",
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 6,
   },
-  infoLabel: {
-    color: "#64748b",
-    fontSize: 11,
-    marginTop: 2,
-  },
+  infoLabel: { color: theme.colors.textMuted, fontSize: 11, marginTop: 2 },
   routeBox: {
     margin: 16,
     marginTop: 0,
-    backgroundColor: "#f8fafc",
+    backgroundColor: theme.colors.bg,
     borderRadius: 12,
     padding: 16,
   },
-  routeItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  routeTextContainer: {
-    flex: 1,
-  },
+  routeItem: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  routeDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  routeTextContainer: { flex: 1 },
   routeLabel: {
-    color: "#64748b",
+    color: theme.colors.textMuted,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
   },
-  routeAddress: {
-    color: "#0f172a",
-    fontSize: 13,
-    marginTop: 2,
-  },
+  routeAddress: { color: theme.colors.text, fontSize: 13, marginTop: 2 },
   routeLine: {
     width: 2,
     height: 20,
-    backgroundColor: "#cbd5e1",
+    backgroundColor: theme.colors.border,
     marginLeft: 5,
     marginVertical: 4,
   },
@@ -289,28 +276,23 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
+    borderTopColor: theme.colors.border,
   },
   button: {
     flex: 1,
     padding: 18,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
   },
-  rejectButton: {
-    backgroundColor: "#f1f5f9",
-  },
-  acceptButton: {
-    backgroundColor: "#10b981",
-  },
+  rejectButton: { backgroundColor: theme.colors.bg },
+  acceptButton: { backgroundColor: theme.colors.brand },
   rejectText: {
-    color: "#64748b",
+    color: theme.colors.textSecondary,
     fontWeight: "bold",
     fontSize: 15,
   },
-  acceptText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
+  acceptText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
 });

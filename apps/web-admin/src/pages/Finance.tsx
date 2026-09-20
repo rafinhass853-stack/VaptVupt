@@ -11,7 +11,25 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { DollarSign, PlusCircle, MinusCircle, Store, TrendingUp } from "lucide-react";
+import {
+  DollarSign,
+  PlusCircle,
+  MinusCircle,
+  Store as StoreIcon,
+  TrendingUp,
+  Search,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Wallet,
+} from "lucide-react";
+import {
+  Card,
+  Button,
+  Input,
+  EmptyState,
+  Badge,
+  useToast,
+} from "@vaptvupt/shared-ui";
 
 interface StoreDoc {
   id: string;
@@ -25,12 +43,15 @@ interface Transaction {
   type: string;
   amount: number;
   description: string;
+  createdAt: any;
 }
 
 export default function Finance() {
+  const { toast } = useToast();
   const [stores, setStores] = useState<StoreDoc[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreDoc | null>(null);
+  const [searchStore, setSearchStore] = useState("");
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState("");
   const [operation, setOperation] = useState<"credit" | "debit">("credit");
@@ -68,6 +89,7 @@ export default function Finance() {
           type: data.type,
           amount: data.amount,
           description: data.description,
+          createdAt: data.createdAt,
         });
       });
       setTransactions(list);
@@ -77,9 +99,13 @@ export default function Finance() {
 
   const totalBalance = stores.reduce((sum, s) => sum + s.balance, 0);
 
+  const filteredStores = stores.filter((s) =>
+    s.name.toLowerCase().includes(searchStore.toLowerCase())
+  );
+
   const handleSubmit = async () => {
     if (!selectedStore || amount <= 0) {
-      alert("Selecione uma loja e informe um valor maior que zero");
+      toast("Selecione uma loja e informe um valor maior que zero", "error");
       return;
     }
     setProcessing(true);
@@ -93,20 +119,26 @@ export default function Finance() {
 
       await addDoc(collection(db, "transactions"), {
         storeId: selectedStore.id,
-        type: operation === "credit" ? "CREDIT_PIX" : "DEBIT_DELIVERY",
+        type: operation === "credit" ? "CREDIT_MANUAL" : "DEBIT_MANUAL",
         amount: operation === "credit" ? amount : -amount,
         orderId: null,
-        description: description || (operation === "credit" ? "Crédito manual" : "Débito manual"),
+        description:
+          description ||
+          (operation === "credit" ? "Crédito manual" : "Débito manual"),
+        balanceAfter: newBalance,
         createdAt: serverTimestamp(),
       });
 
+      toast(
+        `${operation === "credit" ? "Crédito" : "Débito"} de R$ ${amount.toFixed(2)} aplicado!`,
+        "success"
+      );
       setAmount(0);
       setDescription("");
       setSelectedStore(null);
-      alert("Transação registrada!");
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao processar");
+      setSearchStore("");
+    } catch (err: any) {
+      toast(err.message, "error");
     } finally {
       setProcessing(false);
     }
@@ -114,27 +146,31 @@ export default function Finance() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Financeiro Global</h1>
-        <p className="text-gray-500 mt-1">Créditos, débitos e extrato das lojas</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+          Financeiro Global
+        </h1>
+        <p className="text-slate-500 mt-1">
+          Créditos, débitos e extrato consolidado
+        </p>
       </div>
 
-      {/* Cards de resumo */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <SummaryCard
-          icon={Store}
+      {/* KPIs */}
+      <div className="grid grid-cols-3 gap-5 mb-8">
+        <KpiCard
+          icon={<Wallet size={22} />}
           label="Total em Carteiras"
           value={`R$ ${totalBalance.toFixed(2)}`}
           color="blue"
         />
-        <SummaryCard
-          icon={TrendingUp}
+        <KpiCard
+          icon={<StoreIcon size={22} />}
           label="Lojas Ativas"
           value={stores.length}
           color="green"
         />
-        <SummaryCard
-          icon={DollarSign}
+        <KpiCard
+          icon={<TrendingUp size={22} />}
           label="Transações (últimas 30)"
           value={transactions.length}
           color="purple"
@@ -143,157 +179,210 @@ export default function Finance() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Painel de operação */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+        <Card>
+          <h2 className="text-lg font-bold text-slate-800 mb-5">
             Ajuste Manual
           </h2>
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-5">
             <button
               onClick={() => setOperation("credit")}
-              className={`flex-1 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition ${
+              className={`flex-1 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition ${
                 operation === "credit"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-emerald-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               <PlusCircle size={18} /> Creditar
             </button>
             <button
               onClick={() => setOperation("debit")}
-              className={`flex-1 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition ${
+              className={`flex-1 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition ${
                 operation === "debit"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-red-600 text-white shadow-md"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               <MinusCircle size={18} /> Debitar
             </button>
           </div>
 
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Loja
-          </label>
-          <select
-            value={selectedStore?.id || ""}
-            onChange={(e) => {
-              const s = stores.find((x) => x.id === e.target.value);
-              setSelectedStore(s || null);
-            }}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Selecione...</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} — R$ {s.balance.toFixed(2)}
-              </option>
-            ))}
-          </select>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Buscar loja
+            </label>
+            <Input
+              placeholder="Digite o nome da loja..."
+              value={searchStore}
+              onChange={(e) => setSearchStore(e.target.value)}
+              icon={<Search size={16} />}
+            />
 
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valor (R$)
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={amount || ""}
-            onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-blue-500"
-            placeholder="0.00"
-          />
+            {searchStore && filteredStores.length > 0 && !selectedStore && (
+              <div className="mt-2 max-h-40 overflow-auto border border-slate-200 rounded-lg bg-white shadow-sm">
+                {filteredStores.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setSelectedStore(s);
+                      setSearchStore(s.name);
+                    }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 text-sm border-b border-slate-100 last:border-b-0 transition"
+                  >
+                    <div className="flex justify-between">
+                      <span className="font-medium text-slate-700">
+                        {s.name}
+                      </span>
+                      <span className="text-emerald-600 font-semibold">
+                        R$ {s.balance.toFixed(2)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
 
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descrição (opcional)
-          </label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500"
-            placeholder="Ex: Estorno de pedido #123"
-          />
+            {selectedStore && (
+              <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">
+                    {selectedStore.name}
+                  </p>
+                  <p className="text-xs text-emerald-700">
+                    Saldo atual: R$ {selectedStore.balance.toFixed(2)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedStore(null);
+                    setSearchStore("");
+                  }}
+                  className="text-emerald-600 hover:text-emerald-800 text-sm"
+                >
+                  Trocar
+                </button>
+              </div>
+            )}
+          </div>
 
-          <button
+          <div className="mb-4">
+            <Input
+              label="Valor (R$)"
+              type="number"
+              step="0.01"
+              value={amount || ""}
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+              placeholder="0.00"
+            />
+          </div>
+
+          <div className="mb-5">
+            <Input
+              label="Descrição (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex: Estorno de pedido #123"
+            />
+          </div>
+
+          <Button
+            variant={operation === "credit" ? "success" : "danger"}
+            fullWidth
+            size="lg"
+            loading={processing}
             onClick={handleSubmit}
-            disabled={processing}
-            className={`w-full py-3 rounded-lg font-semibold text-white transition disabled:opacity-50 ${
-              operation === "credit"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
-            }`}
           >
             {processing
               ? "Processando..."
               : `${operation === "credit" ? "Creditar" : "Debitar"} R$ ${amount.toFixed(2)}`}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         {/* Extrato */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold text-gray-800">Últimas Transações</h2>
+        <Card padded={false}>
+          <div className="p-5 border-b border-slate-200">
+            <h2 className="font-bold text-slate-800">Últimas Transações</h2>
           </div>
-          <div className="max-h-[500px] overflow-auto divide-y">
+          <div className="max-h-[600px] overflow-auto">
             {transactions.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">
-                Nenhuma transação registrada.
-              </div>
+              <EmptyState
+                icon={<DollarSign size={32} />}
+                title="Nenhuma transação"
+                description="As movimentações aparecerão aqui."
+              />
             ) : (
-              transactions.map((t) => {
-                const store = stores.find((s) => s.id === t.storeId);
-                const isCredit = t.amount > 0;
-                return (
-                  <div key={t.id} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm text-gray-800">
-                          {store?.name || "Loja removida"}
-                        </p>
-                        <p className="text-xs text-gray-500">{t.description}</p>
-                      </div>
-                      <span
-                        className={`font-bold text-sm ${
-                          isCredit ? "text-green-600" : "text-red-600"
+              <div className="divide-y divide-slate-100">
+                {transactions.map((t) => {
+                  const store = stores.find((s) => s.id === t.storeId);
+                  const isCredit = t.amount > 0;
+                  return (
+                    <div
+                      key={t.id}
+                      className="p-4 hover:bg-slate-50 transition flex items-center gap-3"
+                    >
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isCredit
+                            ? "bg-emerald-100 text-emerald-600"
+                            : "bg-red-100 text-red-600"
                         }`}
                       >
-                        {isCredit ? "+" : ""}R$ {Math.abs(t.amount).toFixed(2)}
+                        {isCredit ? (
+                          <ArrowUpCircle size={18} />
+                        ) : (
+                          <ArrowDownCircle size={18} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {store?.name || "Loja removida"}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {t.description}
+                        </p>
+                      </div>
+                      <span
+                        className={`font-bold text-sm whitespace-nowrap ${
+                          isCredit ? "text-emerald-600" : "text-red-600"
+                        }`}
+                      >
+                        {isCredit ? "+" : ""}R${" "}
+                        {Math.abs(t.amount).toFixed(2)}
                       </span>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
 }
 
-function SummaryCard({
-  icon: Icon,
+function KpiCard({
+  icon,
   label,
   value,
   color,
 }: {
-  icon: any;
+  icon: React.ReactNode;
   label: string;
   value: string | number;
-  color: string;
+  color: "blue" | "green" | "purple";
 }) {
-  const colors: Record<string, string> = {
+  const colors = {
     blue: "bg-blue-100 text-blue-600",
-    green: "bg-green-100 text-green-600",
+    green: "bg-emerald-100 text-emerald-600",
     purple: "bg-purple-100 text-purple-600",
   };
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm border flex items-center gap-3">
-      <div className={`p-3 rounded-lg ${colors[color]}`}>
-        <Icon size={20} />
-      </div>
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition flex items-center gap-4">
+      <div className={`p-3 rounded-xl ${colors[color]}`}>{icon}</div>
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-xl font-bold text-gray-800">{value}</p>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-xl font-bold text-slate-800">{value}</p>
       </div>
     </div>
   );

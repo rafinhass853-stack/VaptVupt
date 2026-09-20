@@ -83,6 +83,7 @@ export const createDeliveryOrder = onCall(async (request) => {
         orderId: doc.id,
         totalFee: data.pricing.totalFee,
         idempotent: true,
+        pin: null, // PIN não é reexibido por segurança
       };
     }
   }
@@ -101,6 +102,10 @@ export const createDeliveryOrder = onCall(async (request) => {
     );
     return sum + stopTotal;
   }, 0);
+
+  // Gera PIN de 4 dígitos e salva APENAS o hash SHA-256
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const deliveryCodeHash = crypto.createHash("sha256").update(pin).digest("hex");
 
   const storeRef = db.collection("stores").doc(storeId);
 
@@ -148,7 +153,7 @@ export const createDeliveryOrder = onCall(async (request) => {
       assignedDriverId: null,
       rejectedDriverIds: [],
       offerExpiresAt: null,
-      deliveryCodeHash: "",
+      deliveryCodeHash,
       pricing: { totalFee, distanceKm: distance },
       stops: stops,
       totalOrderValue,
@@ -165,7 +170,13 @@ export const createDeliveryOrder = onCall(async (request) => {
 
     transaction.update(transactionRef, { orderId: orderRef.id });
 
-    return { success: true, orderId: orderRef.id, totalFee, newBalance };
+    return {
+      success: true,
+      orderId: orderRef.id,
+      totalFee,
+      newBalance,
+      totalOrderValue,
+    };
   });
 
   await db.collection("orders").doc(result.orderId).update({
@@ -183,10 +194,19 @@ export const createDeliveryOrder = onCall(async (request) => {
     actorType: "store",
     targetId: result.orderId,
     targetType: "order",
-    details: { totalFee, distance, stopsCount: stops.length, totalOrderValue },
+    details: {
+      totalFee,
+      distance,
+      stopsCount: stops.length,
+      totalOrderValue,
+      // NÃO incluir o PIN aqui
+    },
   });
 
-  return result;
+  return {
+    ...result,
+    pin,
+  };
 });
 
 // ============ 2. ACCEPT ORDER ============
@@ -291,8 +311,8 @@ export const verifyDeliveryCode = onCall(async (request) => {
     assertTransition(order.status, "DELIVERED");
 
     const codeHash = crypto.createHash("sha256").update(code).digest("hex");
-    if (order.deliveryCodeHash && order.deliveryCodeHash !== codeHash) {
-      throw new HttpsError("invalid-argument", "Código de confirmação inválido.");
+    if (!order.deliveryCodeHash || order.deliveryCodeHash !== codeHash) {
+      throw new HttpsError("invalid-argument", "PIN de confirmação inválido.");
     }
 
     transaction.update(orderRef, {

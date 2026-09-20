@@ -4,23 +4,43 @@ import {
   onSnapshot,
   addDoc,
   doc,
-  updateDoc,
   deleteDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { Store, Plus, Search, DollarSign, MapPin, X } from "lucide-react";
+import {
+  Store as StoreIcon,
+  Plus,
+  Search,
+  DollarSign,
+  MapPin,
+  Trash2,
+  Phone,
+  Mail,
+} from "lucide-react";
+import {
+  Card,
+  Button,
+  Input,
+  Modal,
+  EmptyState,
+  Badge,
+  useToast,
+} from "@vaptvupt/shared-ui";
 
 interface StoreDoc {
   id: string;
   name: string;
   slug: string;
   balance: number;
+  phone?: string;
+  email?: string;
   address: { street: string; number: string; lat: number; lng: number };
   uid: string;
 }
 
 export default function Stores() {
+  const { toast } = useToast();
   const [stores, setStores] = useState<StoreDoc[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +55,8 @@ export default function Stores() {
           name: data.name || "Sem nome",
           slug: data.slug || "",
           balance: data.balance || 0,
+          phone: data.phone,
+          email: data.email,
           address: data.address || { street: "", number: "", lat: 0, lng: 0 },
           uid: data.uid || "",
         });
@@ -50,90 +72,130 @@ export default function Stores() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Deletar esta loja? Esta ação não pode ser desfeita.")) return;
-    await deleteDoc(doc(db, "stores", id));
+    try {
+      await deleteDoc(doc(db, "stores", id));
+      toast("Loja removida!", "success");
+    } catch (err: any) {
+      toast(err.message, "error");
+    }
   };
 
   return (
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Lojas</h1>
-          <p className="text-gray-500 mt-1">{stores.length} cadastrada(s)</p>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+            Lojas
+          </h1>
+          <p className="text-slate-500 mt-1">
+            {stores.length} cadastrada(s)
+          </p>
         </div>
-        <button
+        <Button
+          variant="primary"
+          icon={<Plus size={18} />}
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition"
         >
-          <Plus size={18} />
           Nova Loja
-        </button>
+        </Button>
       </div>
 
-      <div className="mb-6 relative">
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
+      <div className="mb-6">
+        <Input
           placeholder="Buscar por nome..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          icon={<Search size={16} />}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border">
-            Nenhuma loja encontrada.
-          </div>
-        ) : (
-          filtered.map((store) => (
+      {filtered.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<StoreIcon size={32} />}
+            title="Nenhuma loja encontrada"
+            description="Cadastre uma nova loja para começar."
+          />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map((store) => (
             <div
               key={store.id}
-              className="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition"
+              className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition group"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-blue-100 text-blue-600 p-2 rounded-lg">
-                  <Store size={20} />
+              <div className="flex items-start justify-between mb-4">
+                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white p-2.5 rounded-xl shadow">
+                  <StoreIcon size={20} />
                 </div>
                 <button
                   onClick={() => handleDelete(store.id)}
-                  className="text-red-400 hover:text-red-600"
+                  className="text-slate-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100"
                 >
-                  <X size={16} />
+                  <Trash2 size={16} />
                 </button>
               </div>
-              <h3 className="font-bold text-gray-800 mb-1">{store.name}</h3>
-              <p className="text-xs text-gray-500 mb-3">/{store.slug}</p>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <DollarSign size={14} />
-                  <span className="font-semibold">
+              <h3 className="font-bold text-slate-800 mb-1 truncate">
+                {store.name}
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">/{store.slug}</p>
+
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <DollarSign size={14} />
+                    Saldo
+                  </div>
+                  <span className="text-sm font-bold text-emerald-600">
                     R$ {store.balance.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex items-start gap-2 text-gray-500 text-xs">
-                  <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-                  <span>
-                    {store.address.street}, {store.address.number}
-                  </span>
-                </div>
+
+                {store.address.street && (
+                  <div className="flex items-start gap-2 text-xs text-slate-500">
+                    <MapPin size={14} className="mt-0.5 flex-shrink-0" />
+                    <span className="line-clamp-1">
+                      {store.address.street}, {store.address.number}
+                    </span>
+                  </div>
+                )}
+
+                {store.phone && (
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Phone size={14} />
+                    {store.phone}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <Badge variant={store.uid ? "success" : "warning"} size="sm">
+                  {store.uid ? "Vinculada" : "Sem acesso"}
+                </Badge>
               </div>
             </div>
-          ))
-        )}
-      </div>
-
-      {showModal && (
-        <NewStoreModal onClose={() => setShowModal(false)} />
+          ))}
+        </div>
       )}
+
+      <NewStoreModal open={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }
 
-function NewStoreModal({ onClose }: { onClose: () => void }) {
+function NewStoreModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [street, setStreet] = useState("");
   const [number, setNumber] = useState("");
   const [initialBalance, setInitialBalance] = useState(0);
@@ -141,7 +203,7 @@ function NewStoreModal({ onClose }: { onClose: () => void }) {
 
   const handleSave = async () => {
     if (!name || !slug) {
-      alert("Nome e slug são obrigatórios");
+      toast("Nome e slug são obrigatórios", "error");
       return;
     }
     setSaving(true);
@@ -149,6 +211,8 @@ function NewStoreModal({ onClose }: { onClose: () => void }) {
       await addDoc(collection(db, "stores"), {
         name,
         slug,
+        phone,
+        email,
         balance: initialBalance,
         address: {
           street,
@@ -159,92 +223,105 @@ function NewStoreModal({ onClose }: { onClose: () => void }) {
         uid: "",
         createdAt: serverTimestamp(),
       });
+      toast("Loja criada com sucesso!", "success");
       onClose();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao criar loja");
+      setName("");
+      setSlug("");
+      setPhone("");
+      setEmail("");
+      setStreet("");
+      setNumber("");
+      setInitialBalance(0);
+    } catch (err: any) {
+      toast(err.message, "error");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Nova Loja</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <Input label="Nome da Loja" value={name} onChange={setName} placeholder="Pizzaria do Zé" />
-          <Input
-            label="Slug (URL única)"
-            value={slug}
-            onChange={(v) => setSlug(v.toLowerCase().replace(/\s+/g, "-"))}
-            placeholder="pizzaria-do-ze"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Rua" value={street} onChange={setStreet} placeholder="Av. Paulista" />
-            <Input label="Número" value={number} onChange={setNumber} placeholder="1000" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Saldo Inicial (R$)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={initialBalance}
-              onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nova Loja"
+      size="lg"
+      footer={
+        <div className="flex gap-3">
+          <Button variant="ghost" fullWidth onClick={onClose}>
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            fullWidth
+            loading={saving}
             onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             {saving ? "Salvando..." : "Criar Loja"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
-  );
-}
+      }
+    >
+      <div className="space-y-4">
+        <Input
+          label="Nome da Loja"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Pizzaria do Zé"
+        />
 
-function Input({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+        <Input
+          label="Slug (URL única)"
+          value={slug}
+          onChange={(e) =>
+            setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))
+          }
+          placeholder="pizzaria-do-ze"
+          hint="Será usado na URL do portal da loja"
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Telefone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            icon={<Phone size={16} />}
+          />
+          <Input
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="contato@loja.com"
+            icon={<Mail size={16} />}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Input
+              label="Rua / Avenida"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              placeholder="Av. Paulista"
+            />
+          </div>
+          <Input
+            label="Número"
+            value={number}
+            onChange={(e) => setNumber(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+
+        <Input
+          label="Saldo Inicial (R$)"
+          type="number"
+          step="0.01"
+          value={initialBalance}
+          onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
+        />
+      </div>
+    </Modal>
   );
 }

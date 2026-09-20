@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { StoreProvider, useStore } from "./context/StoreContext";
+import { ToastProvider } from "@vaptvupt/shared-ui";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
 import NewRoute from "./pages/NewRoute";
 import Wallet from "./pages/Wallet";
 import Orders from "./pages/Orders";
@@ -31,23 +33,83 @@ function PublicRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
 export default function App() {
   return (
-    <StoreProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/" element={<ProtectedRoute><NewRoute /></ProtectedRoute>} />
-          <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
-          <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
-          <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><StoreSettings /></ProtectedRoute>} />
-        </Routes>
-      </BrowserRouter>
-    </StoreProvider>
+    <ToastProvider>
+      <StoreProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/new-route"
+              element={
+                <ProtectedRoute>
+                  <NewRoute />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tracking"
+              element={
+                <ProtectedRoute>
+                  <Tracking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <ProtectedRoute>
+                  <Wallet />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <StoreSettings />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </StoreProvider>
+    </ToastProvider>
   );
 }

@@ -15,7 +15,10 @@ import {
   Truck,
   XCircle,
   MapPin,
+  KeyRound,
+  RefreshCw,
 } from "lucide-react";
+import { Card, Badge, Modal, EmptyState, SkeletonList } from "@vaptvupt/shared-ui";
 
 interface Order {
   id: string;
@@ -23,6 +26,7 @@ interface Order {
   storeName: string;
   pricing: { totalFee: number; distanceKm: number };
   stops: any[];
+  totalOrderValue?: number;
   assignedDriverId: string | null;
   createdAt: any;
 }
@@ -30,6 +34,7 @@ interface Order {
 export default function Orders() {
   const { store } = useStore();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
@@ -49,36 +54,51 @@ export default function Orders() {
           storeName: data.storeName,
           pricing: data.pricing || { totalFee: 0, distanceKm: 0 },
           stops: data.stops || [],
+          totalOrderValue: data.totalOrderValue,
           assignedDriverId: data.assignedDriverId,
           createdAt: data.createdAt,
         });
       });
       setOrders(list);
+      setLoading(false);
     });
     return () => unsub();
   }, [store]);
 
   const activeOrders = orders.filter(
-    (o) => !["DELIVERED", "CANCELLED"].includes(o.status)
+    (o) => !["DELIVERED", "CANCELLED", "FAILED"].includes(o.status)
   );
   const completedOrders = orders.filter((o) =>
-    ["DELIVERED", "CANCELLED"].includes(o.status)
+    ["DELIVERED", "CANCELLED", "FAILED"].includes(o.status)
   );
 
+  if (loading) {
+    return (
+      <div className="p-8 max-w-5xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800">Meus Pedidos</h1>
+        </div>
+        <SkeletonList rows={5} />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Meus Pedidos</h1>
-        <p className="text-gray-500 mt-1">
-          {activeOrders.length} ativo(s) • {completedOrders.length} finalizado(s)
+    <div className="p-8 max-w-5xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+          Meus Pedidos
+        </h1>
+        <p className="text-slate-500 mt-1">
+          {activeOrders.length} em andamento • {completedOrders.length} finalizados
         </p>
       </div>
 
-      {/* Pedidos Ativos */}
       {activeOrders.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
-            Em Andamento
+          <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <RefreshCw size={18} className="text-blue-600" />
+            Em Andamento ({activeOrders.length})
           </h2>
           <div className="space-y-3">
             {activeOrders.map((order) => (
@@ -92,13 +112,18 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Histórico */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Histórico</h2>
+        <h2 className="text-lg font-bold text-slate-800 mb-3">
+          Histórico ({completedOrders.length})
+        </h2>
         {completedOrders.length === 0 ? (
-          <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
-            Nenhum pedido finalizado ainda.
-          </div>
+          <Card>
+            <EmptyState
+              icon={<Package size={32} />}
+              title="Nenhum pedido finalizado"
+              description="Seus pedidos concluídos aparecerão aqui."
+            />
+          </Card>
         ) : (
           <div className="space-y-3">
             {completedOrders.map((order) => (
@@ -112,132 +137,133 @@ export default function Orders() {
         )}
       </div>
 
-      {/* Modal de detalhes */}
-      {selectedOrder && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedOrder(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[80vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              Pedido #{selectedOrder.id.slice(0, 8)}
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {selectedOrder.pricing.distanceKm.toFixed(1)} km • R${" "}
-              {selectedOrder.pricing.totalFee.toFixed(2)}
-            </p>
+      {/* Modal */}
+      <Modal
+        open={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        title={selectedOrder ? `Pedido #${selectedOrder.id.slice(0, 8)}` : ""}
+        size="lg"
+      >
+        {selectedOrder && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-sm text-slate-500">
+                  {selectedOrder.pricing.distanceKm.toFixed(2)} km
+                </p>
+                <p className="text-2xl font-bold text-slate-800">
+                  R$ {selectedOrder.pricing.totalFee.toFixed(2)}
+                </p>
+              </div>
+              <Badge variant={statusVariant(selectedOrder.status)}>
+                {statusLabel(selectedOrder.status)}
+              </Badge>
+            </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="bg-slate-50 rounded-xl p-4 mb-5">
               <StatusTimeline status={selectedOrder.status} />
             </div>
 
-            <h3 className="font-semibold text-gray-800 mb-3">
+            <h3 className="font-bold text-slate-800 mb-3">
               Paradas ({selectedOrder.stops.length})
             </h3>
             <div className="space-y-3">
               {selectedOrder.stops.map((stop: any, i: number) => (
-                <div key={i} className="flex gap-3">
-                  <div className="bg-emerald-100 text-emerald-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-gray-800">
-                      {stop.customerName}
-                    </p>
-                    <p className="text-xs text-gray-500">{stop.address}</p>
-                    <p className="text-xs text-gray-500">
-                      {stop.customerPhone}
-                    </p>
+                <div
+                  key={i}
+                  className="border border-slate-200 rounded-lg p-4 bg-white"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="bg-emerald-100 text-emerald-700 rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-800">
+                        {stop.customerName}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {stop.address}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {stop.customerPhone}
+                      </p>
+
+                      {stop.items && stop.items.length > 0 && (
+                        <div className="mt-3 bg-slate-50 rounded-lg p-2 space-y-1">
+                          {stop.items.map((item: any, j: number) => (
+                            <div key={j} className="flex justify-between text-xs">
+                              <span className="text-slate-600">
+                                {item.quantidade}× {item.nome}
+                              </span>
+                              <span className="text-slate-800 font-medium">
+                                R${" "}
+                                {(item.quantidade * item.valorUnitario).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                          {stop.totalValue && (
+                            <div className="flex justify-between text-xs pt-1 border-t border-slate-200">
+                              <span className="font-semibold text-slate-700">
+                                Total do pedido
+                              </span>
+                              <span className="font-bold text-emerald-600">
+                                R$ {stop.totalValue.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="w-full mt-6 bg-gray-100 hover:bg-gray-200 py-3 rounded-lg font-medium"
-            >
-              Fechar
-            </button>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
 
 function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
-  const statusConfig: Record<string, { label: string; color: string; icon: any }> =
-    {
-      SEARCHING_DRIVER: {
-        label: "Buscando motoboy",
-        color: "bg-yellow-100 text-yellow-700",
-        icon: Clock,
-      },
-      OFFERED: {
-        label: "Ofertado",
-        color: "bg-orange-100 text-orange-700",
-        icon: Clock,
-      },
-      ACCEPTED: {
-        label: "Aceito",
-        color: "bg-blue-100 text-blue-700",
-        icon: Truck,
-      },
-      COLLECTED: {
-        label: "Em rota",
-        color: "bg-indigo-100 text-indigo-700",
-        icon: Truck,
-      },
-      DELIVERED: {
-        label: "Entregue",
-        color: "bg-green-100 text-green-700",
-        icon: CheckCircle2,
-      },
-      CANCELLED: {
-        label: "Cancelado",
-        color: "bg-red-100 text-red-700",
-        icon: XCircle,
-      },
-    };
-
-  const config = statusConfig[order.status] || statusConfig.SEARCHING_DRIVER;
+  const config = statusConfig(order.status);
   const Icon = config.icon;
 
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl border p-4 hover:shadow-md transition cursor-pointer flex items-center gap-4"
+      className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition cursor-pointer flex items-center gap-4"
     >
-      <div className={`p-3 rounded-lg ${config.color}`}>
-        <Icon size={22} />
+      <div className={`p-3 rounded-xl ${config.bgColor}`}>
+        <Icon size={22} className={config.iconColor} />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-gray-800">
+          <span className="font-bold text-slate-800">
             #{order.id.slice(0, 8)}
           </span>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${config.color}`}
-          >
+          <Badge variant={statusVariant(order.status)} size="sm">
             {config.label}
-          </span>
+          </Badge>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1">
             <MapPin size={12} />
             {order.stops.length} parada(s)
           </span>
-          <span>{order.pricing.distanceKm.toFixed(1)} km</span>
+          <span>{order.pricing.distanceKm.toFixed(2)} km</span>
+          {order.totalOrderValue && (
+            <span className="text-emerald-600 font-medium">
+              R$ {order.totalOrderValue.toFixed(2)} em produtos
+            </span>
+          )}
         </div>
       </div>
       <div className="text-right">
-        <p className="font-bold text-gray-800">
+        <p className="font-bold text-slate-800">
           R$ {order.pricing.totalFee.toFixed(2)}
         </p>
+        <p className="text-xs text-slate-400">frete</p>
       </div>
     </div>
   );
@@ -261,23 +287,27 @@ function StatusTimeline({ status }: { status: string }) {
         return (
           <div key={step.key} className="flex items-center gap-3">
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+              className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition ${
                 isDone
                   ? "bg-green-500 text-white"
                   : isCurrent
                   ? "bg-blue-500 text-white animate-pulse"
-                  : "bg-gray-200 text-gray-400"
+                  : "bg-slate-200 text-slate-400"
               }`}
             >
-              {isDone ? <CheckCircle2 size={14} /> : <span className="text-xs">{i + 1}</span>}
+              {isDone ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <span className="text-xs font-semibold">{i + 1}</span>
+              )}
             </div>
             <span
               className={`text-sm ${
                 isCurrent
                   ? "font-bold text-blue-600"
                   : isDone
-                  ? "text-gray-700"
-                  : "text-gray-400"
+                  ? "text-slate-700 font-medium"
+                  : "text-slate-400"
               }`}
             >
               {step.label}
@@ -287,4 +317,85 @@ function StatusTimeline({ status }: { status: string }) {
       })}
     </div>
   );
+}
+
+function statusConfig(status: string) {
+  const map: Record<string, any> = {
+    SEARCHING_DRIVER: {
+      label: "Buscando motoboy",
+      icon: Clock,
+      bgColor: "bg-yellow-100",
+      iconColor: "text-yellow-600",
+    },
+    OFFERED: {
+      label: "Ofertado",
+      icon: Clock,
+      bgColor: "bg-orange-100",
+      iconColor: "text-orange-600",
+    },
+    ACCEPTED: {
+      label: "Aceito",
+      icon: Truck,
+      bgColor: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+    COLLECTED: {
+      label: "Em rota",
+      icon: Truck,
+      bgColor: "bg-indigo-100",
+      iconColor: "text-indigo-600",
+    },
+    IN_DELIVERY: {
+      label: "Em rota",
+      icon: Truck,
+      bgColor: "bg-indigo-100",
+      iconColor: "text-indigo-600",
+    },
+    DELIVERED: {
+      label: "Entregue",
+      icon: CheckCircle2,
+      bgColor: "bg-green-100",
+      iconColor: "text-green-600",
+    },
+    CANCELLED: {
+      label: "Cancelado",
+      icon: XCircle,
+      bgColor: "bg-red-100",
+      iconColor: "text-red-600",
+    },
+    FAILED: {
+      label: "Falhou",
+      icon: XCircle,
+      bgColor: "bg-red-100",
+      iconColor: "text-red-600",
+    },
+  };
+  return (
+    map[status] || {
+      label: status,
+      icon: Package,
+      bgColor: "bg-slate-100",
+      iconColor: "text-slate-600",
+    }
+  );
+}
+
+function statusLabel(status: string): string {
+  return statusConfig(status).label;
+}
+
+function statusVariant(
+  status: string
+): "default" | "success" | "warning" | "danger" | "info" {
+  const map: Record<string, any> = {
+    SEARCHING_DRIVER: "warning",
+    OFFERED: "warning",
+    ACCEPTED: "info",
+    COLLECTED: "info",
+    IN_DELIVERY: "info",
+    DELIVERED: "success",
+    CANCELLED: "danger",
+    FAILED: "danger",
+  };
+  return map[status] || "default";
 }

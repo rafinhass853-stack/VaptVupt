@@ -10,6 +10,10 @@ export default defineConfig({
         __dirname,
         "../../packages/shared-types/src/index.ts"
       ),
+      "@vaptvupt/shared-ui": path.resolve(
+        __dirname,
+        "../../packages/shared-ui/src/index.ts"
+      ),
     },
   },
   server: {

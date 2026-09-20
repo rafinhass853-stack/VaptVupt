@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../context/StoreContext";
-import { Store, AlertCircle } from "lucide-react";
+import { Store, AlertCircle, ArrowRight } from "lucide-react";
+import { Button } from "@vaptvupt/shared-ui";
 
 export default function Login() {
   const { login } = useStore();
@@ -16,33 +17,44 @@ export default function Login() {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.message || "Erro ao fazer login");
+      setError(
+        err.code === "auth/invalid-credential"
+          ? "E-mail ou senha incorretos"
+          : err.message || "Erro ao fazer login"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-600 to-emerald-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_50%)]"></div>
+
+      <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md relative z-10">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-block bg-emerald-600 text-white p-4 rounded-2xl mb-4">
-            <Store size={32} />
+          <div className="inline-flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 text-white w-16 h-16 rounded-2xl mb-4 shadow-lg">
+            <Store size={32} strokeWidth={2.5} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">VaptVupt</h1>
-          <p className="text-gray-500 mt-2">Portal do Estabelecimento</p>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+            VaptVupt
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm">
+            Portal do Estabelecimento
+          </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-4 flex items-start gap-2">
-            <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
-            <span className="text-sm">{error}</span>
+          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-5 flex items-start gap-2 text-sm">
+            <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               E-mail
             </label>
             <input
@@ -50,13 +62,13 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition"
               placeholder="loja@exemplo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               Senha
             </label>
             <input
@@ -64,22 +76,25 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition"
               placeholder="••••••••"
             />
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+            variant="success"
+            size="lg"
+            loading={loading}
+            fullWidth
+            icon={!loading && <ArrowRight size={20} />}
           >
             {loading ? "Entrando..." : "Entrar"}
-          </button>
+          </Button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Acesso para estabelecimentos parceiros
+        <p className="text-center text-xs text-slate-400 mt-6">
+          Acesso exclusivo para estabelecimentos parceiros
         </p>
       </div>
     </div>
