@@ -63,6 +63,35 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
 }
 
 // ============================================
+// Item de Pedido
+// ============================================
+export interface OrderItem {
+  nome: string;
+  quantidade: number;
+  valorUnitario: number;
+}
+
+export function calculateItemTotal(item: OrderItem): number {
+  return item.quantidade * item.valorUnitario;
+}
+
+export function calculateItemsTotal(items: OrderItem[]): number {
+  return items.reduce((sum, i) => sum + calculateItemTotal(i), 0);
+}
+
+// ============================================
+// Formas de Pagamento
+// ============================================
+export type PaymentMethod = "DINHEIRO" | "CARTAO" | "PIX" | "JA_PAGO";
+
+export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
+  DINHEIRO: "Dinheiro",
+  CARTAO: "Cartão",
+  PIX: "PIX",
+  JA_PAGO: "Já pago",
+};
+
+// ============================================
 // Stop - Parada da rota
 // ============================================
 export interface OrderStop {
@@ -71,8 +100,11 @@ export interface OrderStop {
   lng: number;
   customerName: string;
   customerPhone: string;
-  codValue?: number;
+  items: OrderItem[];
+  paymentMethod: PaymentMethod;
+  trocoPara?: number; // se dinheiro, valor para troco
   notes?: string;
+  totalValue: number; // soma dos itens (calculado)
 }
 
 // ============================================
@@ -105,6 +137,7 @@ export interface Order {
   deliveryCodeHash: string;
   pricing: OrderPricing;
   stops: OrderStop[];
+  totalOrderValue: number; // soma de todos os totalValue das stops
   createdAt: any;
   acceptedAt?: any;
   collectedAt?: any;
@@ -119,5 +152,7 @@ export interface Order {
     status: OrderStatus;
     at: any;
     by?: string;
+    driverId?: string;
+    distanceKm?: number;
   }>;
 }

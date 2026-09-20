@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
@@ -11,6 +11,8 @@ import {
   validateStops,
   validateDistance,
 } from "./services/validationService";
+import { findBestDriver } from "./services/matchingService";
+import { geocodeAddress, calculateRoute, autocompleteAddress } from "./services/geocodingService";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -23,13 +25,23 @@ interface PricingSettings {
   extraStopFee: number;
 }
 
+interface OrderItem {
+  nome: string;
+  quantidade: number;
+  valorUnitario: number;
+}
+
 interface Stop {
   address: string;
   lat: number;
   lng: number;
   customerName: string;
   customerPhone: string;
-  codValue?: number;
+  items: OrderItem[];
+  paymentMethod: string;
+  trocoPara?: number;
+  notes?: string;
+  totalValue: number;
 }
 
 // ============ HELPERS ============
@@ -56,7 +68,6 @@ export const createDeliveryOrder = onCall(async (request) => {
   validateStops(stops);
   const distance = validateDistance(totalDistanceKm);
 
-  // Idempotência: se já existe um pedido com essa chave, devolve ele
   if (idempotencyKey) {
     const existing = await db
       .collection("orders")
@@ -81,6 +92,15 @@ export const createDeliveryOrder = onCall(async (request) => {
   const billableKm = Math.max(0, distance - pricing.baseKm);
   const totalFee =
     pricing.baseFee + billableKm * pricing.perKmFee + extraStops * pricing.extraStopFee;
+
+  // Calcula o valor total dos pedidos (soma dos itens)
+  const totalOrderValue = stops.reduce((sum, stop) => {
+    const stopTotal = (stop.items || []).reduce(
+      (s, item) => s + item.quantidade * item.valorUnitario,
+      0
+    );
+    return sum + stopTotal;
+  }, 0);
 
   const storeRef = db.collection("stores").doc(storeId);
 
@@ -131,6 +151,7 @@ export const createDeliveryOrder = onCall(async (request) => {
       deliveryCodeHash: "",
       pricing: { totalFee, distanceKm: distance },
       stops: stops,
+      totalOrderValue,
       idempotencyKey: idempotencyKey || null,
       statusHistory: [
         {
@@ -147,7 +168,6 @@ export const createDeliveryOrder = onCall(async (request) => {
     return { success: true, orderId: orderRef.id, totalFee, newBalance };
   });
 
-  // Mover para SEARCHING_DRIVER (após commit, dispara o matching)
   await db.collection("orders").doc(result.orderId).update({
     status: "SEARCHING_DRIVER",
     statusHistory: admin.firestore.FieldValue.arrayUnion({
@@ -163,7 +183,7 @@ export const createDeliveryOrder = onCall(async (request) => {
     actorType: "store",
     targetId: result.orderId,
     targetType: "order",
-    details: { totalFee, distance, stopsCount: stops.length },
+    details: { totalFee, distance, stopsCount: stops.length, totalOrderValue },
   });
 
   return result;
@@ -329,7 +349,7 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
   console.log(`Processadas ${expired.size} ofertas expiradas.`);
 });
 
-// ============ 5. MATCHING DRIVER (TRIGGER) ============
+// ============ 5. MATCHING DRIVER (TRIGGER, com geohash) ============
 export const matchingDriver = onDocumentUpdated(
   "orders/{orderId}",
   async (event) => {
@@ -342,55 +362,45 @@ export const matchingDriver = onDocumentUpdated(
 
     const orderId = event.params.orderId;
     const rejectedIds: string[] = after.rejectedDriverIds || [];
+    const stops = after.stops || [];
 
-    const driversSnap = await db
-      .collection("drivers")
-      .where("status", "==", "ONLINE")
-      .get();
-
-    if (driversSnap.empty) {
-      console.log(`[MATCHING] Pedido ${orderId}: nenhum motoboy online.`);
+    if (stops.length === 0) {
+      console.log(`[MATCHING] Pedido ${orderId}: sem paradas.`);
       return;
     }
 
-    const candidates = driversSnap.docs
-      .filter((d) => {
-        const data = d.data();
-        if (rejectedIds.includes(d.id)) return false;
-        if (data.blocked) return false;
-        if (data.approved === false) return false;
-        return true;
-      })
-      .map((d) => ({ id: d.id, ...d.data() }));
-
-    if (candidates.length === 0) {
-      console.log(`[MATCHING] Pedido ${orderId}: nenhum candidato elegível.`);
+    const pickup = stops[0];
+    if (typeof pickup.lat !== "number" || typeof pickup.lng !== "number") {
+      console.log(`[MATCHING] Pedido ${orderId}: coleta sem coordenadas.`);
       return;
     }
 
-    candidates.sort((a: any, b: any) => {
-      const aActive = a.activeOrderId ? 1 : 0;
-      const bActive = b.activeOrderId ? 1 : 0;
-      return aActive - bActive;
-    });
+    const best = await findBestDriver(pickup.lat, pickup.lng, rejectedIds);
 
-    const chosen = candidates[0];
+    if (!best) {
+      console.log(`[MATCHING] Pedido ${orderId}: nenhum motoboy próximo.`);
+      return;
+    }
+
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + 30000);
 
     await db.collection("orders").doc(orderId).update({
       status: "OFFERED",
-      assignedDriverId: chosen.id,
+      assignedDriverId: best.driverId,
       offerExpiresAt: expiresAt,
       statusHistory: admin.firestore.FieldValue.arrayUnion({
         status: "OFFERED",
         at: now,
         by: "system",
-        driverId: chosen.id,
+        driverId: best.driverId,
+        distanceKm: best.distanceKm,
       }),
     });
 
-    console.log(`[MATCHING] Pedido ${orderId} → motorista ${chosen.id} (30s)`);
+    console.log(
+      `[MATCHING] Pedido ${orderId} → ${best.driverId} (${best.distanceKm.toFixed(2)}km)`
+    );
   }
 );
 
@@ -447,6 +457,65 @@ export const onDriverCreated = onDocumentCreated(
       console.log(`[OK] Claim 'driver' atribuída a ${driverId}`);
     } catch (err) {
       console.error(`Erro ao atribuir claim a ${driverId}:`, err);
+    }
+  }
+);
+
+// ============ 8. GEOCODING PROXY (Nominatim + OSRM) ============
+export const geocode = onRequest(
+  { cors: true, invoker: "public" },
+  async (req, res) => {
+    try {
+      const address = req.query.address as string;
+      if (!address) {
+        res.status(400).json({ error: "address obrigatório" });
+        return;
+      }
+      const result = await geocodeAddress(address);
+      res.json(result);
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+export const autocomplete = onRequest(
+  { cors: true, invoker: "public" },
+  async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.length < 3) {
+        res.json([]);
+        return;
+      }
+      const results = await autocompleteAddress(query);
+      res.json(results);
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+export const route = onRequest(
+  { cors: true, invoker: "public" },
+  async (req, res) => {
+    try {
+      const stopsParam = req.query.stops as string;
+      if (!stopsParam) {
+        res.status(400).json({ error: "stops obrigatório (lat,lng;lat,lng)" });
+        return;
+      }
+      const stops = stopsParam.split(";").map((s) => {
+        const [lat, lng] = s.split(",").map(Number);
+        return { lat, lng };
+      });
+      const result = await calculateRoute(stops);
+      res.json(result);
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
     }
   }
 );
