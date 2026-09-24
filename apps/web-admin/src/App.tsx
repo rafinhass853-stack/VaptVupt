@@ -6,7 +6,7 @@ import { auth } from "./lib/firebase";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
-import Drivers from "./pages/Drivers";
+import Couriers from "./pages/Couriers";
 import Stores from "./pages/Stores";
 import Finance from "./pages/Finance";
 import Settings from "./pages/Settings";
@@ -29,23 +29,6 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
-          <div className="inline-flex items-center justify-center bg-red-100 text-red-600 w-16 h-16 rounded-2xl mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
           <h2 className="text-2xl font-bold text-slate-800 mb-2">
             Acesso restrito
           </h2>
@@ -104,10 +87,18 @@ export default function App() {
               }
             />
             <Route
+              path="/couriers"
+              element={
+                <ProtectedRoute>
+                  <Couriers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/drivers"
               element={
                 <ProtectedRoute>
-                  <Drivers />
+                  <Couriers />
                 </ProtectedRoute>
               }
             />

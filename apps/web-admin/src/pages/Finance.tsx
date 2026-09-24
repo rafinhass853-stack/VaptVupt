@@ -27,7 +27,6 @@ import {
   Button,
   Input,
   EmptyState,
-  Badge,
   useToast,
 } from "@vaptvupt/shared-ui";
 

@@ -12,14 +12,13 @@ import {
   Trash2,
   Send,
   DollarSign,
-  CheckCircle2,
   Loader2,
   Clock,
   Package,
   X,
   KeyRound,
 } from "lucide-react";
-import { Button, Card, Input, Badge, useToast } from "@vaptvupt/shared-ui";
+import { Button, Card, Badge, useToast } from "@vaptvupt/shared-ui";
 
 interface OrderItem {
   nome: string;
@@ -388,7 +387,7 @@ function StopCard({
   const [suggestions, setSuggestions] = useState<GeocodedAddress[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setQuery(stop.address);

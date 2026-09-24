@@ -18,7 +18,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import { Button, Card, Modal, Badge, EmptyState, useToast } from "@vaptvupt/shared-ui";
+import { Button, Card, Modal, EmptyState, useToast } from "@vaptvupt/shared-ui";
 
 interface Transaction {
   id: string;

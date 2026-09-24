@@ -1,6 +1,9 @@
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
+import {
+  onDocumentUpdated,
+  onDocumentCreated,
+} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
@@ -10,9 +13,17 @@ import {
   requireAuth,
   validateStops,
   validateDistance,
+  isValidCPF,
+  isValidPlate,
+  isValidPhone,
+  isValidEmail,
 } from "./services/validationService";
 import { findBestDriver } from "./services/matchingService";
-import { geocodeAddress, calculateRoute, autocompleteAddress } from "./services/geocodingService";
+import {
+  geocodeAddress,
+  calculateRoute,
+  autocompleteAddress,
+} from "./services/geocodingService";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -83,7 +94,7 @@ export const createDeliveryOrder = onCall(async (request) => {
         orderId: doc.id,
         totalFee: data.pricing.totalFee,
         idempotent: true,
-        pin: null, // PIN não é reexibido por segurança
+        pin: null,
       };
     }
   }
@@ -92,9 +103,10 @@ export const createDeliveryOrder = onCall(async (request) => {
   const extraStops = stops.length - 1;
   const billableKm = Math.max(0, distance - pricing.baseKm);
   const totalFee =
-    pricing.baseFee + billableKm * pricing.perKmFee + extraStops * pricing.extraStopFee;
+    pricing.baseFee +
+    billableKm * pricing.perKmFee +
+    extraStops * pricing.extraStopFee;
 
-  // Calcula o valor total dos pedidos (soma dos itens)
   const totalOrderValue = stops.reduce((sum, stop) => {
     const stopTotal = (stop.items || []).reduce(
       (s, item) => s + item.quantidade * item.valorUnitario,
@@ -103,7 +115,6 @@ export const createDeliveryOrder = onCall(async (request) => {
     return sum + stopTotal;
   }, 0);
 
-  // Gera PIN de 4 dígitos e salva APENAS o hash SHA-256
   const pin = String(Math.floor(1000 + Math.random() * 9000));
   const deliveryCodeHash = crypto.createHash("sha256").update(pin).digest("hex");
 
@@ -199,14 +210,10 @@ export const createDeliveryOrder = onCall(async (request) => {
       distance,
       stopsCount: stops.length,
       totalOrderValue,
-      // NÃO incluir o PIN aqui
     },
   });
 
-  return {
-    ...result,
-    pin,
-  };
+  return { ...result, pin };
 });
 
 // ============ 2. ACCEPT ORDER ============
@@ -231,19 +238,28 @@ export const acceptOrder = onCall(async (request) => {
     const driver = driverDoc.data()!;
 
     if (order.status !== "OFFERED") {
-      throw new HttpsError("failed-precondition", `Status inválido: ${order.status}`);
+      throw new HttpsError(
+        "failed-precondition",
+        `Status inválido: ${order.status}`
+      );
     }
     if (order.assignedDriverId !== uid) {
-      throw new HttpsError("permission-denied", "Este pedido não foi ofertado a você.");
+      throw new HttpsError(
+        "permission-denied",
+        "Este pedido não foi ofertado a você."
+      );
     }
     if (order.offerExpiresAt && order.offerExpiresAt.toDate() < new Date()) {
       throw new HttpsError("deadline-exceeded", "Tempo para aceitar expirou.");
     }
-    if (driver.status !== "ONLINE") {
+    if (driver.driverStatus !== "ONLINE" && driver.status !== "ONLINE") {
       throw new HttpsError("failed-precondition", "Você precisa estar online.");
     }
     if (driver.activeOrderId) {
-      throw new HttpsError("failed-precondition", "Você já tem um pedido ativo.");
+      throw new HttpsError(
+        "failed-precondition",
+        "Você já tem um pedido ativo."
+      );
     }
 
     assertTransition(order.status, "ACCEPTED");
@@ -260,7 +276,7 @@ export const acceptOrder = onCall(async (request) => {
     });
 
     transaction.update(driverRef, {
-      status: "IN_TRIP",
+      driverStatus: "IN_TRIP",
       activeOrderId: orderId,
     });
 
@@ -304,8 +320,15 @@ export const verifyDeliveryCode = onCall(async (request) => {
     if (order.assignedDriverId !== uid) {
       throw new HttpsError("permission-denied", "Pedido não pertence a você.");
     }
-    if (!["COLLECTED", "IN_DELIVERY", "ARRIVING_DESTINATION"].includes(order.status)) {
-      throw new HttpsError("failed-precondition", `Status inválido: ${order.status}`);
+    if (
+      !["COLLECTED", "IN_DELIVERY", "ARRIVING_DESTINATION"].includes(
+        order.status
+      )
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Status inválido: ${order.status}`
+      );
     }
 
     assertTransition(order.status, "DELIVERED");
@@ -326,7 +349,7 @@ export const verifyDeliveryCode = onCall(async (request) => {
     });
 
     transaction.update(driverRef, {
-      status: "ONLINE",
+      driverStatus: "ONLINE",
       activeOrderId: null,
       totalDeliveries: admin.firestore.FieldValue.increment(1),
     });
@@ -361,7 +384,9 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
       status: "SEARCHING_DRIVER",
       assignedDriverId: null,
       offerExpiresAt: null,
-      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(docData.assignedDriverId),
+      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(
+        docData.assignedDriverId
+      ),
     });
   });
 
@@ -369,7 +394,7 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
   console.log(`Processadas ${expired.size} ofertas expiradas.`);
 });
 
-// ============ 5. MATCHING DRIVER (TRIGGER, com geohash) ============
+// ============ 5. MATCHING DRIVER (TRIGGER) ============
 export const matchingDriver = onDocumentUpdated(
   "orders/{orderId}",
   async (event) => {
@@ -403,7 +428,9 @@ export const matchingDriver = onDocumentUpdated(
     }
 
     const now = admin.firestore.Timestamp.now();
-    const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + 30000);
+    const expiresAt = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() + 30000
+    );
 
     await db.collection("orders").doc(orderId).update({
       status: "OFFERED",
@@ -424,7 +451,7 @@ export const matchingDriver = onDocumentUpdated(
   }
 );
 
-// ============ 6. SET USER ROLE (ADMIN ONLY) ============
+// ============ 6. SET USER ROLE (ADMIN) ============
 export const setUserRole = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Não autenticado.");
@@ -465,7 +492,7 @@ export const setUserRole = onCall(async (request) => {
   return { success: true };
 });
 
-// ============ 7. AUTO-ASSIGN DRIVER CLAIM (TRIGGER) ============
+// ============ 7. AUTO-ASSIGN DRIVER CLAIM ============
 export const onDriverCreated = onDocumentCreated(
   "drivers/{driverId}",
   async (event) => {
@@ -481,7 +508,7 @@ export const onDriverCreated = onDocumentCreated(
   }
 );
 
-// ============ 8. GEOCODING PROXY (Nominatim + OSRM) ============
+// ============ 8. GEOCODING PROXY ============
 export const geocode = onRequest(
   { cors: true, invoker: "public" },
   async (req, res) => {
@@ -539,3 +566,384 @@ export const route = onRequest(
     }
   }
 );
+
+// ============ 9. SEND PUSH NOTIFICATION (FCM) ============
+export const sendPushNotification = onCall(async (request) => {
+  requireAuth(request.auth);
+
+  const { targetToken, title, body, data } = request.data as {
+    targetToken: string;
+    title: string;
+    body: string;
+    data?: Record<string, string>;
+  };
+
+  if (!targetToken || !title) {
+    throw new HttpsError(
+      "invalid-argument",
+      "targetToken e title obrigatórios."
+    );
+  }
+
+  try {
+    await admin.messaging().send({
+      token: targetToken,
+      notification: { title, body },
+      data: data || {},
+      android: { priority: "high", notification: { sound: "default" } },
+      apns: { payload: { aps: { sound: "default", badge: 1 } } },
+    });
+    return { success: true };
+  } catch (err: any) {
+    console.error("Erro FCM:", err);
+    throw new HttpsError("internal", "Falha ao enviar notificação.");
+  }
+});
+
+// ============ 10. GENERATE PIX CHARGE ============
+export const generatePixCharge = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+
+  const { storeId, amount } = request.data as {
+    storeId: string;
+    amount: number;
+  };
+
+  if (!storeId || !amount || amount <= 0) {
+    throw new HttpsError("invalid-argument", "storeId e amount obrigatórios.");
+  }
+
+  const storeRef = db.collection("stores").doc(storeId);
+  const storeSnap = await storeRef.get();
+  if (!storeSnap.exists) {
+    throw new HttpsError("not-found", "Loja não encontrada.");
+  }
+
+  const storeData = storeSnap.data()!;
+  if (storeData.uid && storeData.uid !== uid) {
+    throw new HttpsError("permission-denied", "Loja não pertence a você.");
+  }
+
+  const chargeId = `PIX-${storeId.slice(0, 8)}-${Date.now()}`;
+
+  const pixCode = `00020126580014BR.GOV.BCB.PIX0136${chargeId}5204000053039865406${amount.toFixed(
+    2
+  )}5802BR5913VaptVupt LTDA6009SAO PAULO62070503***6304ABCD`;
+
+  await db.collection("pixCharges").doc(chargeId).set({
+    chargeId,
+    storeId,
+    amount,
+    status: "PENDING",
+    pixCode,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, chargeId, pixCode, amount };
+});
+
+// ============ 11. CONFIRM PIX CHARGE ============
+export const confirmPixCharge = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { chargeId } = request.data as { chargeId: string };
+
+  if (!chargeId) throw new HttpsError("invalid-argument", "chargeId obrigatório.");
+
+  const chargeRef = db.collection("pixCharges").doc(chargeId);
+
+  const result = await db.runTransaction(async (transaction) => {
+    const chargeDoc = await transaction.get(chargeRef);
+    if (!chargeDoc.exists) {
+      throw new HttpsError("not-found", "Cobrança não encontrada.");
+    }
+
+    const charge = chargeDoc.data()!;
+    if (charge.status === "PAID") {
+      throw new HttpsError("already-exists", "Cobrança já paga.");
+    }
+
+    const storeRef = db.collection("stores").doc(charge.storeId);
+    const storeDoc = await transaction.get(storeRef);
+    if (!storeDoc.exists) {
+      throw new HttpsError("not-found", "Loja não encontrada.");
+    }
+
+    const storeData = storeDoc.data()!;
+    const newBalance = (storeData.balance || 0) + charge.amount;
+
+    transaction.update(storeRef, { balance: newBalance });
+    transaction.update(chargeRef, {
+      status: "PAID",
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      paidBy: uid,
+    });
+
+    const txRef = db.collection("transactions").doc();
+    transaction.set(txRef, {
+      storeId: charge.storeId,
+      type: "CREDIT_PIX",
+      amount: charge.amount,
+      orderId: null,
+      description: `Recarga PIX ${chargeId.slice(0, 12)}`,
+      balanceAfter: newBalance,
+      idempotencyKey: chargeId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true, newBalance, amount: charge.amount };
+  });
+
+  await logAudit({
+    action: "PIX_CONFIRMED",
+    actorId: uid,
+    actorType: "store",
+    targetId: chargeId,
+    targetType: "pixCharge",
+    details: { amount: result.amount },
+  });
+
+  return result;
+});
+
+// ============ 12. CREATE COURIER (ADMIN) ============
+export const createCourier = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+
+  if (request.auth!.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Apenas administradores.");
+  }
+
+  const {
+    email,
+    password,
+    fullName,
+    cpf,
+    phone,
+    address,
+    licenseCategory,
+    licenseNumber,
+    vehicle,
+  } = request.data as {
+    email: string;
+    password: string;
+    fullName: string;
+    cpf: string;
+    phone: string;
+    address: {
+      street: string;
+      number: string;
+      neighborhood: string;
+      city: string;
+    };
+    licenseCategory: string;
+    licenseNumber: string;
+    vehicle: {
+      type: "carro" | "moto";
+      plate: string;
+      color: string;
+      year: string;
+      brand: string;
+      model: string;
+    };
+  };
+
+  // Validações
+  if (!email || !password || !fullName || !cpf || !phone) {
+    throw new HttpsError("invalid-argument", "Campos obrigatórios faltando.");
+  }
+  if (!isValidEmail(email)) {
+    throw new HttpsError("invalid-argument", "E-mail inválido.");
+  }
+  if (password.length < 6) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Senha deve ter ao menos 6 caracteres."
+    );
+  }
+  if (!isValidCPF(cpf)) {
+    throw new HttpsError("invalid-argument", "CPF inválido.");
+  }
+  if (!isValidPhone(phone)) {
+    throw new HttpsError("invalid-argument", "Telefone inválido.");
+  }
+  if (!vehicle || !vehicle.type || !vehicle.plate) {
+    throw new HttpsError("invalid-argument", "Dados do veículo incompletos.");
+  }
+  if (!["carro", "moto"].includes(vehicle.type)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Tipo de veículo deve ser carro ou moto."
+    );
+  }
+  if (!isValidPlate(vehicle.plate)) {
+    throw new HttpsError("invalid-argument", "Placa inválida.");
+  }
+
+  // Verifica CPF duplicado
+  const cpfClean = cpf.replace(/\D/g, "");
+  const existingCpf = await db
+    .collection("drivers")
+    .where("cpfClean", "==", cpfClean)
+    .limit(1)
+    .get();
+  if (!existingCpf.empty) {
+    throw new HttpsError("already-exists", "CPF já cadastrado.");
+  }
+
+  // Cria usuário no Auth
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: fullName,
+    });
+  } catch (err: any) {
+    if (err.code === "auth/email-already-exists") {
+      throw new HttpsError("already-exists", "E-mail já cadastrado.");
+    }
+    throw new HttpsError("internal", err.message);
+  }
+
+  // Claim de driver
+  await admin.auth().setCustomUserClaims(userRecord.uid, { role: "driver" });
+
+  // Salva no Firestore
+  await db.collection("drivers").doc(userRecord.uid).set({
+    uid: userRecord.uid,
+    fullName,
+    email,
+    cpf: cpf.replace(
+      /(\d{3})(\d{3})(\d{3})(\d{2})/,
+      "$1.$2.$3-$4"
+    ),
+    cpfClean,
+    phone: phone.replace(/\D/g, ""),
+    address,
+    licenseCategory,
+    licenseNumber,
+    vehicle,
+    status: "active",
+    driverStatus: "OFFLINE",
+    activeOrderId: null,
+    fcmToken: "",
+    currentGeohash: "",
+    approved: true,
+    blocked: false,
+    totalDeliveries: 0,
+    rating: 5.0,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await logAudit({
+    action: "COURIER_CREATED",
+    actorId: uid,
+    actorType: "admin",
+    targetId: userRecord.uid,
+    targetType: "driver",
+    details: { email, fullName, vehicleType: vehicle.type },
+  });
+
+  return { success: true, courierId: userRecord.uid };
+});
+
+// ============ 13. CREATE STORE (ADMIN) ============
+export const createStore = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+
+  if (request.auth!.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Apenas administradores.");
+  }
+
+  const { name, slug, phone, managerName, email, password, address } =
+    request.data as {
+      name: string;
+      slug: string;
+      phone: string;
+      managerName: string;
+      email: string;
+      password: string;
+      address: {
+        street: string;
+        number: string;
+        neighborhood: string;
+        city: string;
+        lat?: number;
+        lng?: number;
+        fullAddress?: string;
+      };
+    };
+
+  // Validações
+  if (!name || !slug || !email || !password || !managerName) {
+    throw new HttpsError("invalid-argument", "Campos obrigatórios faltando.");
+  }
+  if (!isValidEmail(email)) {
+    throw new HttpsError("invalid-argument", "E-mail inválido.");
+  }
+  if (password.length < 6) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Senha deve ter ao menos 6 caracteres."
+    );
+  }
+
+  // Slug duplicado?
+  const existingSlug = await db
+    .collection("stores")
+    .where("slug", "==", slug)
+    .limit(1)
+    .get();
+  if (!existingSlug.empty) {
+    throw new HttpsError("already-exists", "Slug já está em uso.");
+  }
+
+  // Cria usuário
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: managerName,
+    });
+  } catch (err: any) {
+    if (err.code === "auth/email-already-exists") {
+      throw new HttpsError("already-exists", "E-mail já cadastrado.");
+    }
+    throw new HttpsError("internal", err.message);
+  }
+
+  // Claim de store
+  await admin.auth().setCustomUserClaims(userRecord.uid, { role: "store" });
+
+  // Salva no Firestore
+  const storeRef = await db.collection("stores").add({
+    uid: userRecord.uid,
+    name,
+    slug,
+    phone: phone || "",
+    managerName,
+    email,
+    address: address || {},
+    balance: 0,
+    status: "active",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Atualiza claim com o storeId
+  await admin.auth().setCustomUserClaims(userRecord.uid, {
+    role: "store",
+    storeId: storeRef.id,
+  });
+
+  await logAudit({
+    action: "STORE_CREATED",
+    actorId: uid,
+    actorType: "admin",
+    targetId: storeRef.id,
+    targetType: "store",
+    details: { name, slug, email },
+  });
+
+  return { success: true, storeId: storeRef.id };
+});

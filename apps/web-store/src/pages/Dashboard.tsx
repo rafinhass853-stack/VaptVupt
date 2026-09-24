@@ -6,7 +6,6 @@ import {
   Package,
   Truck,
   DollarSign,
-  Clock,
   TrendingUp,
   ArrowRight,
 } from "lucide-react";

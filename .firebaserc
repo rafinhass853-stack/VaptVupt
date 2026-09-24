@@ -1,1 +1,18 @@
-{"projects":{"default":"vaptvupt-ebe00"}}
+{
+  "projects": {
+    "default": "vaptvupt-ebe00"
+  },
+  "targets": {
+    "vaptvupt-ebe00": {
+      "hosting": {
+        "admin": [
+          "vaptvupt-admin"
+        ],
+        "store": [
+          "vaptvupt-store"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

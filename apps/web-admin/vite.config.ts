@@ -21,4 +21,9 @@ export default defineConfig({
       allow: ["../.."],
     },
   },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
+  },
 });

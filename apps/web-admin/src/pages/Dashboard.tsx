@@ -5,7 +5,6 @@ import {
   query,
   orderBy,
   limit,
-  where,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import LiveMap from "../components/LiveMap";
@@ -14,15 +13,12 @@ import {
   Users,
   Package,
   DollarSign,
-  TrendingUp,
   Activity,
-  Filter,
   Download,
   Search,
   CheckCircle2,
-  Clock,
 } from "lucide-react";
-import { Badge, Card, Button, Input, useToast } from "@vaptvupt/shared-ui";
+import { Badge, Button, useToast } from "@vaptvupt/shared-ui";
 
 interface Driver {
   id: string;
@@ -131,7 +127,6 @@ export default function Dashboard() {
     (sum, o) => sum + (o.pricing?.totalFee || 0),
     0
   );
-  const avgDeliveryTime = 25; // TODO: calcular
 
   // Filtros
   const filteredOrders = orders.filter((o) => {

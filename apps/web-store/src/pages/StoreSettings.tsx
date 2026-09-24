@@ -5,7 +5,6 @@ import { useStore } from "../context/StoreContext";
 import {
   MapPin,
   Save,
-  CheckCircle2,
   Store as StoreIcon,
   Phone,
   Mail,

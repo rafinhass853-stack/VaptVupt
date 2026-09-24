@@ -9,8 +9,8 @@ import { db } from "../lib/firebase";
 import { useStore } from "../context/StoreContext";
 import LiveMap from "../components/LiveMap";
 import type { MapMarker } from "../components/LiveMap";
-import { Truck, Users, MapPin, Package } from "lucide-react";
-import { Card, Badge, EmptyState } from "@vaptvupt/shared-ui";
+import { Truck, Users, Package } from "lucide-react";
+import { Badge, EmptyState } from "@vaptvupt/shared-ui";
 
 interface Order {
   id: string;

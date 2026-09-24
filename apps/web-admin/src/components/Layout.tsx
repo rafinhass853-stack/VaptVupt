@@ -24,7 +24,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   const menuItems = [
     { to: "/", icon: LayoutDashboard, label: "Torre de Controle" },
-    { to: "/drivers", icon: Users, label: "Motoboys" },
+    { to: "/couriers", icon: Users, label: "Motoboys" },
     { to: "/stores", icon: Store, label: "Lojas" },
     { to: "/finance", icon: DollarSign, label: "Financeiro" },
     { to: "/audit", icon: FileText, label: "Auditoria" },
