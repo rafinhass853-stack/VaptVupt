@@ -279,6 +279,7 @@ export const acceptOrder = onCall(async (request) => {
     transaction.update(driverRef, {
       driverStatus: "IN_TRIP",
       activeOrderId: orderId,
+      activeStoreId: order.storeId || null,
     });
 
     return { success: true, orderId };
@@ -421,6 +422,7 @@ export const verifyDeliveryCode = onCall(async (request) => {
     transaction.update(driverRef, {
       driverStatus: "ONLINE",
       activeOrderId: null,
+      activeStoreId: null,
       totalDeliveries: admin.firestore.FieldValue.increment(1),
     });
 
@@ -964,6 +966,7 @@ export const createCourier = onCall(async (request) => {
     status: "active",
     driverStatus: "OFFLINE",
     activeOrderId: null,
+    activeStoreId: null,
     fcmToken: "",
     currentGeohash: "",
     approved: true,
