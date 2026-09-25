@@ -15,6 +15,7 @@ import Notifications from "./pages/Notifications";
 import Support from "./pages/Support";
 import Audit from "./pages/Audit";
 import Settings from "./pages/Settings";
+import Analytics from "./pages/Analytics";
 
 function Loading() { return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" /></div>; }
 
@@ -37,6 +38,7 @@ export default function App() {
     <Route path="/drivers" element={<Navigate to="/couriers" replace />} />
     <Route path="/stores" element={<ProtectedRoute><Stores /></ProtectedRoute>} />
     <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+    <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
     <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
     <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
     <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
