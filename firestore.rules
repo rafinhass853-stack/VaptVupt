@@ -32,7 +32,7 @@ service cloud.firestore {
     // ============================================
     match /stores/{storeId} {
       // Leitura: próprio dono, admin, ou qualquer autenticado (para exibir nome no pedido)
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isStoreOwner(storeId);
 
       // Criação: somente admin
       allow create: if isAdmin();
@@ -50,7 +50,7 @@ service cloud.firestore {
     // DRIVERS
     // ============================================
     match /drivers/{driverId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isOwnDriver(driverId);
 
       // Criação: o próprio driver (auto-cadastro) ou admin
       allow create: if isOwnDriver(driverId) || isAdmin();
@@ -137,7 +137,7 @@ service cloud.firestore {
     // ============================================
     match /audit/{auditId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
+      allow create: if false;
       allow update, delete: if false;
     }
 
