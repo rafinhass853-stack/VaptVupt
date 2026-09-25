@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Modal, TextInput, Linking, Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -182,7 +182,7 @@ export default function ActiveTripScreen() {
 
         {/* Action button */}
         {step === "TO_STORE" && (
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: "#f59e0b" }]} onPress={() => setStep("AT_STORE")}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: "#f59e0b" }]} onPress={async () => { try { const updateFn = httpsCallable(functions, "updateOrderStatus"); await updateFn({ orderId: order.id, status: "ARRIVING_PICKUP" }); setStep("AT_STORE"); } catch (err: any) { Alert.alert("Erro", err.message || "Não foi possível atualizar o status."); } }}>
             <Ionicons name="checkmark" size={22} color="#fff" />
             <Text style={styles.actionButtonText}>Cheguei na Loja</Text>
           </TouchableOpacity>
