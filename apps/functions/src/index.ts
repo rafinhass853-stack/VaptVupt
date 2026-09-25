@@ -8,6 +8,7 @@ import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
 import { assertTransition } from "./state/orderStateMachine";
+import type { OrderStatus } from "./state/orderStateMachine";
 import { logAudit } from "./services/auditService";
 import {
   requireAuth,
@@ -297,7 +298,7 @@ export const acceptOrder = onCall(async (request) => {
 // ============ DRIVER ORDER ACTIONS ============
 export const updateOrderStatus = onCall(async (request) => {
   const uid = requireAuth(request.auth);
-  const { orderId, status } = request.data as { orderId: string; status: string };
+  const { orderId, status } = request.data as { orderId: string; status: OrderStatus };
   if (!orderId || !status) throw new HttpsError("invalid-argument", "orderId e status obrigatórios.");
 
   const allowed = ["ARRIVING_PICKUP", "COLLECTED", "IN_DELIVERY", "ARRIVING_DESTINATION"];
