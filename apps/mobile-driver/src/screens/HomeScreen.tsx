@@ -69,7 +69,7 @@ export default function HomeScreen() {
         setOffer({
           orderId: docSnap.id,
           storeName: data.storeName || "Loja",
-          totalFee: data.pricing?.totalFee || 0,
+          totalFee: data.pricing?.driverPayout ?? data.pricing?.totalFee ?? 0,
           distanceKm: data.pricing?.distanceKm || 0,
           pickupAddress: stops[0]?.address || data.storeName || "Loja",
           deliveryAddress: stops[stops.length - 1]?.address || "Destino",
