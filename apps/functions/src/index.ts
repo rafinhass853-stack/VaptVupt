@@ -339,21 +339,26 @@ export const rejectOrder = onCall(async (request) => {
   const { orderId } = request.data as { orderId: string };
   if (!orderId) throw new HttpsError("invalid-argument", "orderId obrigatório.");
   const orderRef = db.collection("orders").doc(orderId);
-  const orderDoc = await orderRef.get();
-  if (!orderDoc.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
-  const order = orderDoc.data()!;
-  if (order.status !== "OFFERED" || order.assignedDriverId !== uid) throw new HttpsError("failed-precondition", "Esta oferta não está disponível para você.");
-  await orderRef.update({
-    status: "SEARCHING_DRIVER",
-    assignedDriverId: null,
-    offerExpiresAt: null,
-    rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(uid),
-    statusHistory: admin.firestore.FieldValue.arrayUnion({
+  await db.runTransaction(async (transaction) => {
+    const orderDoc = await transaction.get(orderRef);
+    if (!orderDoc.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+    const order = orderDoc.data()!;
+    if (order.status !== "OFFERED" || order.assignedDriverId !== uid) {
+      throw new HttpsError("failed-precondition", "Esta oferta não está disponível para você.");
+    }
+    assertTransition(order.status, "SEARCHING_DRIVER");
+    transaction.update(orderRef, {
       status: "SEARCHING_DRIVER",
-      at: admin.firestore.Timestamp.now(),
-      by: uid,
-      reason: "DRIVER_REJECTED",
-    }),
+      assignedDriverId: null,
+      offerExpiresAt: null,
+      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(uid),
+      statusHistory: admin.firestore.FieldValue.arrayUnion({
+        status: "SEARCHING_DRIVER",
+        at: admin.firestore.Timestamp.now(),
+        by: uid,
+        reason: "DRIVER_REJECTED",
+      }),
+    });
   });
   await logAudit({ action: "ORDER_REJECTED", actorId: uid, actorType: "driver", targetId: orderId, targetType: "order" });
   return { success: true, orderId };
@@ -442,20 +447,33 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
     .where("offerExpiresAt", "<", now)
     .get();
 
-  const batch = db.batch();
-  expired.forEach((doc) => {
-    const docData = doc.data();
-    batch.update(doc.ref, {
-      status: "SEARCHING_DRIVER",
-      assignedDriverId: null,
-      offerExpiresAt: null,
-      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(
-        docData.assignedDriverId
-      ),
-    });
-  });
-
-  await batch.commit();
+  await Promise.all(
+    expired.docs.map(async (doc) => {
+      await db.runTransaction(async (transaction) => {
+        const current = await transaction.get(doc.ref);
+        if (!current.exists) return;
+        const data = current.data()!;
+        if (data.status !== "OFFERED" || !data.offerExpiresAt || data.offerExpiresAt.toMillis() >= now.toMillis()) {
+          return;
+        }
+        assertTransition(data.status, "SEARCHING_DRIVER");
+        transaction.update(doc.ref, {
+          status: "SEARCHING_DRIVER",
+          assignedDriverId: null,
+          offerExpiresAt: null,
+          rejectedDriverIds: data.assignedDriverId
+            ? admin.firestore.FieldValue.arrayUnion(data.assignedDriverId)
+            : admin.firestore.FieldValue.arrayUnion(),
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "SEARCHING_DRIVER",
+            at: now,
+            by: "system",
+            reason: "OFFER_EXPIRED",
+          }),
+        });
+      });
+    })
+  );
   console.log(`Processadas ${expired.size} ofertas expiradas.`);
 });
 
@@ -515,6 +533,59 @@ export const matchingDriver = onDocumentUpdated(
     );
   }
 );
+
+// ============ 6. RETRY SEARCHING ORDERS ============
+// Reprocessa pedidos que continuam procurando entregador. Isso evita que
+// um pedido fique indefinidamente em SEARCHING_DRIVER quando não havia
+// candidato disponível no primeiro disparo do matching.
+export const retrySearchingOrders = onSchedule("every 1 minutes", async () => {
+  const snapshot = await db
+    .collection("orders")
+    .where("status", "==", "SEARCHING_DRIVER")
+    .limit(50)
+    .get();
+
+  let offered = 0;
+
+  for (const orderDoc of snapshot.docs) {
+    const order = orderDoc.data();
+    const stops = order.stops || [];
+    const pickup = stops[0];
+
+    if (typeof pickup?.lat !== "number" || typeof pickup?.lng !== "number") {
+      continue;
+    }
+
+    const rejectedIds: string[] = order.rejectedDriverIds || [];
+    const best = await findBestDriver(pickup.lat, pickup.lng, rejectedIds);
+    if (!best) continue;
+
+    const now = admin.firestore.Timestamp.now();
+    const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + 30000);
+
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(orderDoc.ref);
+      if (!current.exists || current.data()?.status !== "SEARCHING_DRIVER") return;
+
+      transaction.update(orderDoc.ref, {
+        status: "OFFERED",
+        assignedDriverId: best.driverId,
+        offerExpiresAt: expiresAt,
+        statusHistory: admin.firestore.FieldValue.arrayUnion({
+          status: "OFFERED",
+          at: now,
+          by: "system",
+          driverId: best.driverId,
+          distanceKm: best.distanceKm,
+          reason: "SEARCH_RETRY",
+        }),
+      });
+      offered += 1;
+    });
+  }
+
+  console.log(`[MATCHING] Retry: ${snapshot.size} em busca, ${offered} novas ofertas.`);
+});
 
 // ============ 6. SET USER ROLE (ADMIN) ============
 export const setUserRole = onCall(async (request) => {
