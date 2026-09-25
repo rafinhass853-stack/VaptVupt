@@ -26,7 +26,13 @@ export default function Settings() {
       const docRef = doc(db, "settings", "pricing");
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        setPricing(snap.data() as PricingSettings);
+        const data = snap.data() as Partial<PricingSettings>;
+        setPricing((current) => ({
+          ...current,
+          ...data,
+          minimumFee: Number(data.minimumFee ?? data.baseFee ?? current.minimumFee),
+          platformPercent: Number(data.platformPercent ?? current.platformPercent),
+        }));
       }
       const matchingSnap = await getDoc(doc(db, "settings", "matching"));
       if (matchingSnap.exists()) setMatching(matchingSnap.data() as MatchingSettings);
