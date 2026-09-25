@@ -32,9 +32,11 @@ const db = admin.firestore();
 // ============ TIPOS ============
 interface PricingSettings {
   baseFee: number;
+  minimumFee: number;
   baseKm: number;
   perKmFee: number;
   extraStopFee: number;
+  platformPercent: number;
 }
 
 interface OrderItem {
@@ -60,9 +62,17 @@ interface Stop {
 async function getPricing(): Promise<PricingSettings> {
   const doc = await db.collection("settings").doc("pricing").get();
   if (!doc.exists) {
-    return { baseFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0 };
+    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20 };
   }
-  return doc.data() as PricingSettings;
+  const data = doc.data() as Partial<PricingSettings>;
+  return {
+    baseFee: Number(data.baseFee ?? 8),
+    minimumFee: Number(data.minimumFee ?? data.baseFee ?? 8),
+    baseKm: Number(data.baseKm ?? 3),
+    perKmFee: Number(data.perKmFee ?? 1.5),
+    extraStopFee: Number(data.extraStopFee ?? 2),
+    platformPercent: Math.min(100, Math.max(0, Number(data.platformPercent ?? 20))),
+  };
 }
 
 // ============ 1. CREATE DELIVERY ORDER ============
@@ -103,10 +113,13 @@ export const createDeliveryOrder = onCall(async (request) => {
   const pricing = await getPricing();
   const extraStops = stops.length - 1;
   const billableKm = Math.max(0, distance - pricing.baseKm);
-  const totalFee =
+  const calculatedFee =
     pricing.baseFee +
     billableKm * pricing.perKmFee +
     extraStops * pricing.extraStopFee;
+  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+  const platformFee = totalFee * (pricing.platformPercent / 100);
+  const driverPayout = totalFee - platformFee;
 
   const totalOrderValue = stops.reduce((sum, stop) => {
     const stopTotal = (stop.items || []).reduce(
@@ -166,7 +179,18 @@ export const createDeliveryOrder = onCall(async (request) => {
       rejectedDriverIds: [],
       offerExpiresAt: null,
       deliveryCodeHash,
-      pricing: { totalFee, distanceKm: distance },
+      pricing: {
+        totalFee,
+        distanceKm: distance,
+        baseFee: pricing.baseFee,
+        minimumFee: pricing.minimumFee,
+        baseKm: pricing.baseKm,
+        perKmFee: pricing.perKmFee,
+        extraStopFee: pricing.extraStopFee,
+        platformPercent: pricing.platformPercent,
+        platformFee,
+        driverPayout,
+      },
       stops: stops,
       totalOrderValue,
       idempotencyKey: idempotencyKey || null,
@@ -215,6 +239,27 @@ export const createDeliveryOrder = onCall(async (request) => {
   });
 
   return { ...result, pin };
+});
+
+
+// ============ DELIVERY PRICE QUOTE ============
+export const quoteDeliveryPrice = onCall(async (request) => {
+  requireAuth(request.auth);
+  const distanceKm = validateDistance(Number(request.data?.totalDistanceKm));
+  const stopsCount = Math.max(1, Number(request.data?.stopsCount || 1));
+  const pricing = await getPricing();
+  const extraStops = Math.max(0, stopsCount - 1);
+  const billableKm = Math.max(0, distanceKm - pricing.baseKm);
+  const calculatedFee =
+    pricing.baseFee +
+    billableKm * pricing.perKmFee +
+    extraStops * pricing.extraStopFee;
+  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+  return {
+    totalFee,
+    distanceKm,
+    durationRule: "ADMIN_PRICING",
+  };
 });
 
 // ============ 2. ACCEPT ORDER ============
@@ -417,7 +462,29 @@ export const verifyDeliveryCode = onCall(async (request) => {
         at: admin.firestore.Timestamp.now(),
         by: uid,
       }),
+      finance: {
+        customerCharge: order.pricing?.totalFee || 0,
+        platformFee: order.pricing?.platformFee || 0,
+        driverPayout: order.pricing?.driverPayout || 0,
+        settledAt: admin.firestore.Timestamp.now(),
+      },
     });
+
+    const driverPayout = Number(order.pricing?.driverPayout || 0);
+    if (driverPayout > 0) {
+      const earningsRef = db.collection("driverEarnings").doc();
+      transaction.set(earningsRef, {
+        driverId: uid,
+        orderId,
+        storeId: order.storeId || null,
+        amount: driverPayout,
+        status: "PENDING",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      transaction.update(driverRef, {
+        pendingEarnings: admin.firestore.FieldValue.increment(driverPayout),
+      });
+    }
 
     transaction.update(driverRef, {
       driverStatus: "ONLINE",
