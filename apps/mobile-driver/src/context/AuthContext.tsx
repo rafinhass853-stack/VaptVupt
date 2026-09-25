@@ -15,6 +15,7 @@ export interface DriverData {
   status: string;
   vehicleType: string;
   activeOrderId: string | null;
+  totalDeliveries?: number;
   cpf?: string;
   phone?: string;
   plate?: string;
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 status: data.status || "OFFLINE",
                 vehicleType: data.vehicleType || "MOTO",
                 activeOrderId: data.activeOrderId || null,
+                totalDeliveries: Number(data.totalDeliveries ?? 0),
                 cpf: data.cpf,
                 phone: data.phone,
                 plate: data.plate,
@@ -99,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       vehicleType: data.vehicleType,
       status: "OFFLINE",
       activeOrderId: null,
+      totalDeliveries: 0,
       fcmToken: "",
       currentGeohash: "",
       approved: true, // Por padrão aprovado; no Admin pode bloquear
