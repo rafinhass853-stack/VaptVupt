@@ -119,6 +119,7 @@ export default function ActiveTripScreen() {
           pickupLng={pickup.lng || -46.6565}
           deliveryLat={delivery.lat || -23.5613}
           deliveryLng={delivery.lng || -46.6565}
+          activeLeg={step === "TO_CUSTOMER" || step === "ARRIVED" ? "TO_CUSTOMER" : "TO_STORE"}
         />
       </View>
 
