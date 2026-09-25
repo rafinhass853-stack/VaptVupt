@@ -13,7 +13,8 @@ export type OrderStatus =
   | "ARRIVING_DESTINATION"
   | "DELIVERED"
   | "CANCELLED"
-  | "FAILED";
+  | "FAILED"
+  | "PROBLEM";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "Pendente",
