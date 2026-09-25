@@ -4,12 +4,8 @@ import { db } from "../lib/firebase";
 import { Save, DollarSign, MapPin, Plus, Settings as SettingsIcon } from "lucide-react";
 import { Button, Card, Input, useToast } from "@vaptvupt/shared-ui";
 
-interface PricingSettings {
-  baseFee: number;
-  baseKm: number;
-  perKmFee: number;
-  extraStopFee: number;
-}
+interface PricingSettings { baseFee:number; baseKm:number; perKmFee:number; extraStopFee:number; }
+interface MatchingSettings { radii:number[]; maxCandidates:number; maxAgeMinutes:number; }
 
 export default function Settings() {
   const { toast } = useToast();
@@ -19,6 +15,7 @@ export default function Settings() {
     perKmFee: 1.5,
     extraStopFee: 2.0,
   });
+  const [matching, setMatching] = useState<MatchingSettings>({radii:[3,5,10,20,50],maxCandidates:20,maxAgeMinutes:5});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +26,8 @@ export default function Settings() {
       if (snap.exists()) {
         setPricing(snap.data() as PricingSettings);
       }
+      const matchingSnap = await getDoc(doc(db, "settings", "matching"));
+      if (matchingSnap.exists()) setMatching(matchingSnap.data() as MatchingSettings);
       setLoading(false);
     };
     load();
@@ -38,6 +37,7 @@ export default function Settings() {
     setSaving(true);
     try {
       await setDoc(doc(db, "settings", "pricing"), pricing);
+      await setDoc(doc(db, "settings", "matching"), matching);
       toast("Configurações salvas com sucesso!", "success");
     } catch (err: any) {
       toast(err.message, "error");
@@ -148,6 +148,16 @@ export default function Settings() {
             {saving ? "Salvando..." : "Salvar Configurações"}
           </Button>
         </div>
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2"><MapPin size={20} className="text-blue-600"/> Matching de Entregadores</h2>
+        <div className="space-y-5">
+          <Input label="Raios de busca (km)" value={matching.radii.join(", ")} onChange={e=>setMatching({...matching,radii:e.target.value.split(",").map(v=>Number(v.trim())).filter(v=>v>0)})} hint="Ex.: 3, 5, 10, 20, 50" />
+          <Input label="Máximo de candidatos" type="number" value={matching.maxCandidates} onChange={e=>setMatching({...matching,maxCandidates:Number(e.target.value)||1})} />
+          <Input label="Idade máxima da localização (minutos)" type="number" value={matching.maxAgeMinutes} onChange={e=>setMatching({...matching,maxAgeMinutes:Number(e.target.value)||1})} hint="Entregadores com localização mais antiga não entram no matching." />
+        </div>
+        <p className="text-xs text-slate-500 mt-5">Esses parâmetros são lidos pelo backend durante a distribuição automática dos pedidos.</p>
       </Card>
 
       <Card className="mt-6">
