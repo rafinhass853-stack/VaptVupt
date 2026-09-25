@@ -38,11 +38,9 @@ interface Stop {
   notes?: string;
 }
 
-interface PricingSettings {
-  baseFee: number;
-  baseKm: number;
-  perKmFee: number;
-  extraStopFee: number;
+interface PricingQuote {
+  totalFee: number;
+  distanceKm: number;
 }
 
 export default function NewRoute() {
@@ -50,12 +48,7 @@ export default function NewRoute() {
   const { toast } = useToast();
   const [stops, setStops] = useState<Stop[]>([createEmptyStop()]);
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
-  const [pricing, setPricing] = useState<PricingSettings>({
-    baseFee: 8.0,
-    baseKm: 3.0,
-    perKmFee: 1.5,
-    extraStopFee: 2.0,
-  });
+  const [quote, setQuote] = useState<PricingQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [deliveryPin, setDeliveryPin] = useState<string | null>(null);
@@ -63,8 +56,6 @@ export default function NewRoute() {
 
   useEffect(() => {
     (async () => {
-      const snap = await getDoc(doc(db, "settings", "pricing"));
-      if (snap.exists()) setPricing(snap.data() as PricingSettings);
       if (store) {
         setStops([
           {
@@ -84,22 +75,31 @@ export default function NewRoute() {
     const withCoords = stops.filter((s) => s.lat && s.lng);
     if (withCoords.length < 2) {
       setRouteResult(null);
+      setQuote(null);
       return;
     }
     setCalculatingRoute(true);
-    calculateRoute(withCoords.map((s) => ({ lat: s.lat!, lng: s.lng! }))).then((r) => {
+    calculateRoute(withCoords.map((s) => ({ lat: s.lat!, lng: s.lng! }))).then(async (r) => {
       setRouteResult(r);
+      try {
+        const quoteDelivery = httpsCallable(functions, "quoteDeliveryPrice");
+        const response = await quoteDelivery({
+          totalDistanceKm: r.distanceKm,
+          stopsCount: stops.length,
+        });
+        setQuote(response.data as PricingQuote);
+      } finally {
+        setCalculatingRoute(false);
+      }
+    }).catch(() => {
+      setQuote(null);
       setCalculatingRoute(false);
     });
   }, [stops]);
 
   const distanceKm = routeResult?.distanceKm || 0;
 
-  const calculateFee = () => {
-    const extraStops = Math.max(0, stops.length - 1);
-    const billableKm = Math.max(0, distanceKm - pricing.baseKm);
-    return pricing.baseFee + billableKm * pricing.perKmFee + extraStops * pricing.extraStopFee;
-  };
+  const calculateFee = () => quote?.totalFee || 0;
 
   const totalOrderValue = stops.reduce(
     (sum, s) => sum + s.items.reduce((acc, i) => acc + i.quantidade * i.valorUnitario, 0),
@@ -303,14 +303,14 @@ export default function NewRoute() {
                 </div>
               )}
               <div className="flex justify-between text-slate-600 pt-2.5 border-t border-slate-100">
-                <span>Frete (taxa VaptVupt)</span>
-                <span className="font-medium">R$ {totalFee.toFixed(2)}</span>
+                <span>Valor do serviço</span>
+                <span className="font-bold text-slate-800">R$ {totalFee.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="bg-emerald-50 rounded-xl p-4 mb-5">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-slate-800">Você paga</span>
+                <span className="font-bold text-slate-800">Valor da entrega</span>
                 <span className="text-3xl font-bold text-emerald-600">
                   R$ {totalFee.toFixed(2)}
                 </span>
@@ -326,7 +326,7 @@ export default function NewRoute() {
               fullWidth
               loading={loading}
               disabled={
-                loading || calculatingRoute || distanceKm === 0 || validStops.length < 2
+                loading || calculatingRoute || !quote?.totalFee || distanceKm === 0 || validStops.length < 2
               }
               icon={!loading && <Send size={20} />}
               onClick={handleSubmit}
