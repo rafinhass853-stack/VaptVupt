@@ -481,9 +481,6 @@ export const verifyDeliveryCode = onCall(async (request) => {
         status: "PENDING",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      transaction.update(driverRef, {
-        pendingEarnings: admin.firestore.FieldValue.increment(driverPayout),
-      });
     }
 
     transaction.update(driverRef, {
@@ -491,6 +488,9 @@ export const verifyDeliveryCode = onCall(async (request) => {
       activeOrderId: null,
       activeStoreId: null,
       totalDeliveries: admin.firestore.FieldValue.increment(1),
+      ...(driverPayout > 0
+        ? { pendingEarnings: admin.firestore.FieldValue.increment(driverPayout) }
+        : {}),
     });
 
     return { success: true };
