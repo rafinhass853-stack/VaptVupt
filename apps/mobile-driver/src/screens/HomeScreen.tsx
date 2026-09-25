@@ -131,11 +131,8 @@ export default function HomeScreen() {
   const handleRejectOffer = async () => {
     if (!offer || !user) return;
     try {
-      await updateDoc(doc(db, "orders", offer.orderId), {
-        status: "SEARCHING_DRIVER",
-        assignedDriverId: null,
-        offerExpiresAt: null,
-      });
+      const rejectFn = httpsCallable(functions, "rejectOrder");
+      await rejectFn({ orderId: offer.orderId });
     } catch (err) {
       console.error(err);
     }
