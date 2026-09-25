@@ -132,8 +132,14 @@ service cloud.firestore {
     // SETTINGS
     // ============================================
     match /settings/{docId} {
-      allow read: if isAuthenticated();
+      // Pricing contains internal commission rules and is never exposed to stores/drivers.
+      allow read: if isAdmin() || (isAuthenticated() && docId != 'pricing');
       allow write: if isAdmin();
+    }
+
+    match /driverEarnings/{earningId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.driverId == request.auth.uid);
+      allow write: if false;
     }
 
     // ============================================
