@@ -214,3 +214,20 @@ Antes de enviar alterações:
 ## Licença
 
 A licença do projeto deve ser definida antes da publicação pública do código.
+
+
+## VaptVupt — evolução para plataforma completa
+
+O branch `vaptvupt-professional-overhaul` agora inclui também a base de:
+
+- BI operacional e KPIs;
+- monitoramento de localização e alertas de localização desatualizada/desvio;
+- localização em segundo plano no aplicativo do entregador;
+- endpoint seguro para registrar localização;
+- suporte contextual por pedido;
+- financeiro separado em faturamento, receita da plataforma e repasses;
+- liquidação de repasses com idempotência transacional;
+- tipos compartilhados de tarifa e divisão financeira;
+- preparação para multiempresa, zonas, surge pricing e gateway de pagamento real.
+
+A integração de gateway PIX real permanece separada da função de recarga simulada existente: a arquitetura agora permite substituir o adaptador sem alterar o fluxo operacional.
