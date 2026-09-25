@@ -151,6 +151,30 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+
+    match /supportTickets/{ticketId} {
+      allow read: if isAdmin()
+        || (isAuthenticated() && (
+          resource.data.createdBy == request.auth.uid
+          || (resource.data.storeId != null && isStoreOwner(resource.data.storeId))
+          || (resource.data.driverId == request.auth.uid)
+        ));
+      allow create: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /supportMessages/{messageId} {
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.participantIds != null && request.auth.uid in resource.data.participantIds);
+      allow write: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.recipientId == request.auth.uid);
+      allow write: if false;
+    }
+
     // ============================================
     // DEFAULT: deny all
     // ============================================
