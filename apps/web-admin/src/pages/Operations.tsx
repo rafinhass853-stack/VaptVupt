@@ -1,8 +1,9 @@
 import {useEffect,useState} from "react";
 import {collection,onSnapshot} from "firebase/firestore";
 import {db} from "../lib/firebase";
-import LiveMap,{MapMarker} from "../components/LiveMap";
-import {Bike,MapPin,Package,Search,Truck,Activity} from "lucide-react";
+import LiveMap from "../components/LiveMap";
+import type { MapMarker } from "../components/LiveMap";
+import {Bike ,Package,Search,Truck,Activity} from "lucide-react";
 
 type Driver={id:string;name?:string;status?:string;lat?:number;lng?:number;activeOrderId?:string|null};
 type Order={id:string;status:string;storeName?:string;assignedDriverId?:string|null;stops?:any[];pricing?:{distanceKm?:number;totalFee?:number}};
