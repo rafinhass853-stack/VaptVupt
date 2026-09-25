@@ -294,6 +294,70 @@ export const acceptOrder = onCall(async (request) => {
   return result;
 });
 
+// ============ DRIVER ORDER ACTIONS ============
+export const updateOrderStatus = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { orderId, status } = request.data as { orderId: string; status: string };
+  if (!orderId || !status) throw new HttpsError("invalid-argument", "orderId e status obrigatórios.");
+
+  const allowed = ["ARRIVING_PICKUP", "COLLECTED", "IN_DELIVERY", "ARRIVING_DESTINATION"];
+  if (!allowed.includes(status)) throw new HttpsError("invalid-argument", "Status operacional inválido.");
+
+  const orderRef = db.collection("orders").doc(orderId);
+  const driverRef = db.collection("drivers").doc(uid);
+
+  await db.runTransaction(async (transaction) => {
+    const [orderDoc, driverDoc] = await Promise.all([transaction.get(orderRef), transaction.get(driverRef)]);
+    if (!orderDoc.exists || !driverDoc.exists) throw new HttpsError("not-found", "Pedido ou entregador não encontrado.");
+    const order = orderDoc.data()!;
+    const driver = driverDoc.data()!;
+    if (order.assignedDriverId !== uid || driver.activeOrderId !== orderId) throw new HttpsError("permission-denied", "Pedido não pertence ao entregador.");
+    assertTransition(order.status, status);
+
+    const update: Record<string, any> = {
+      status,
+      statusHistory: admin.firestore.FieldValue.arrayUnion({
+        status,
+        at: admin.firestore.Timestamp.now(),
+        by: uid,
+      }),
+    };
+    if (status === "ARRIVING_PICKUP") update.arrivingPickupAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "COLLECTED") update.collectedAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "IN_DELIVERY") update.inDeliveryAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "ARRIVING_DESTINATION") update.arrivingDestinationAt = admin.firestore.FieldValue.serverTimestamp();
+    transaction.update(orderRef, update);
+  });
+
+  await logAudit({ action: "ORDER_STATUS_UPDATED", actorId: uid, actorType: "driver", targetId: orderId, targetType: "order", details: { status } });
+  return { success: true, orderId, status };
+});
+
+export const rejectOrder = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { orderId } = request.data as { orderId: string };
+  if (!orderId) throw new HttpsError("invalid-argument", "orderId obrigatório.");
+  const orderRef = db.collection("orders").doc(orderId);
+  const orderDoc = await orderRef.get();
+  if (!orderDoc.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+  const order = orderDoc.data()!;
+  if (order.status !== "OFFERED" || order.assignedDriverId !== uid) throw new HttpsError("failed-precondition", "Esta oferta não está disponível para você.");
+  await orderRef.update({
+    status: "SEARCHING_DRIVER",
+    assignedDriverId: null,
+    offerExpiresAt: null,
+    rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(uid),
+    statusHistory: admin.firestore.FieldValue.arrayUnion({
+      status: "SEARCHING_DRIVER",
+      at: admin.firestore.Timestamp.now(),
+      by: uid,
+      reason: "DRIVER_REJECTED",
+    }),
+  });
+  await logAudit({ action: "ORDER_REJECTED", actorId: uid, actorType: "driver", targetId: orderId, targetType: "order" });
+  return { success: true, orderId };
+});
+
 // ============ 3. VERIFY DELIVERY CODE ============
 export const verifyDeliveryCode = onCall(async (request) => {
   const uid = requireAuth(request.auth);
