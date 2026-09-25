@@ -1,5 +1,7 @@
 name: VaptVupt CI
 
+# Production validation pipeline
+
 on:
   push:
     branches: ["**"]
