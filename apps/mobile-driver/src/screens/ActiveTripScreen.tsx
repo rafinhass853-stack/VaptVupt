@@ -150,7 +150,7 @@ export default function ActiveTripScreen() {
         </View>
 
         {/* Stops details */}
-        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
+        <View style={styles.navigationHint}><Ionicons name="navigate" size={18} color={theme.colors.info} /><Text style={styles.navigationHintText}>{step === "TO_CUSTOMER" || step === "ARRIVED" ? "Rota ativa: destino do cliente" : "Rota ativa: coleta na loja"} · se sair da rota, o trajeto é recalculado automaticamente.</Text></View>\n\n        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
         {order.stops.map((stop: any, i: number) => (
           <TouchableOpacity key={i} style={styles.stopCard} onPress={() => setExpandedStop(expandedStop === i ? null : i)}>
             <View style={styles.stopHeader}>
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   stepTitle: { color: theme.colors.textMuted, fontSize: 14, fontWeight: "600" },
   stepTitleActive: { color: theme.colors.text },
   stepSubtitle: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
-  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
+  navigationHint: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(59,130,246,0.12)", borderWidth: 1, borderColor: "rgba(59,130,246,0.25)", borderRadius: 12, padding: 12, marginBottom: 16 },\n  navigationHintText: { flex: 1, color: "#93c5fd", fontSize: 12, lineHeight: 17 },\n  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
   stopCard: { backgroundColor: theme.colors.bgCard, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   stopHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   stopNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.brand, alignItems: "center", justifyContent: "center" },
