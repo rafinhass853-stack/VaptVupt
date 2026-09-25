@@ -52,10 +52,12 @@ export default function Settings() {
     return <div className="p-8 text-slate-500">Carregando...</div>;
   }
 
-  const exampleTotal =
+  const exampleTotal = Math.max(
+    pricing.minimumFee,
     pricing.baseFee +
-    Math.max(0, 5 - pricing.baseKm) * pricing.perKmFee +
-    (2 - 1) * pricing.extraStopFee;
+      Math.max(0, 5 - pricing.baseKm) * pricing.perKmFee +
+      (2 - 1) * pricing.extraStopFee
+  );
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
