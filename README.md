@@ -20,21 +20,21 @@ O VaptVupt é organizado em aplicações e pacotes independentes dentro de um mo
 O fluxo operacional é controlado pelo backend e segue uma máquina de estados:
 
 ```text
+PENDING
+      ↓
 SEARCHING_DRIVER
       ↓
 OFFERED
       ↓
 ACCEPTED
       ↓
-GOING_TO_PICKUP
+ARRIVING_PICKUP
       ↓
-ARRIVED_PICKUP
+COLLECTED
       ↓
-PICKED_UP
+IN_DELIVERY
       ↓
-IN_TRANSIT
-      ↓
-ARRIVED_DESTINATION
+ARRIVING_DESTINATION
       ↓
 DELIVERED
 ```
@@ -44,7 +44,7 @@ Estados de exceção incluem:
 - `CANCELLED`
 - `EXPIRED`
 - `FAILED`
-- `PROBLEM`
+
 
 As transições importantes são validadas no backend para evitar alterações arbitrárias pelo cliente.
 
@@ -190,6 +190,7 @@ Integrações externas, como provedores reais de pagamento, credenciamento de se
 ## Roadmap
 
 - [ ] Finalizar validação de produção
+- [ ] Validar fluxos ponta a ponta com Firebase real
 - [ ] Expandir testes automatizados
 - [ ] Paginação e otimização de consultas
 - [ ] Auditoria operacional completa
