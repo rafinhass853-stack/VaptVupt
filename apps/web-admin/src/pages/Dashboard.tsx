@@ -3,7 +3,7 @@ import {collection,onSnapshot,query,orderBy,limit} from "firebase/firestore";
 import {db} from "../lib/firebase";
 import {Link} from "react-router-dom";
 import {Activity,AlertTriangle,Bike,CheckCircle2,Clock,Map,Package,Store,Wallet,ArrowRight} from "lucide-react";
-import LiveMap,{MapMarker} from "../components/LiveMap";
+import LiveMap,{type MapMarker} from "../components/LiveMap";
 
 type Order={id:string;status:string;storeName?:string;pricing?:{totalFee?:number;distanceKm?:number};createdAt:any;assignedDriverId?:string|null};
 type Driver={id:string;name?:string;status?:string;lat?:number;lng?:number};
