@@ -8,7 +8,7 @@ import { theme } from "../theme";
 
 interface CompletedOrder {
   id: string;
-  pricing: { totalFee: number };
+  pricing: { totalFee: number; driverPayout?: number; platformFee?: number; }
   deliveredAt: any;
   storeName: string;
 }
@@ -45,8 +45,9 @@ export default function EarningsScreen() {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayOrders = orders.filter((o) => o.deliveredAt?.toDate?.()?.getTime() >= today.getTime());
-  const todayEarnings = todayOrders.reduce((sum, o) => sum + o.pricing.totalFee, 0);
-  const totalEarnings = orders.reduce((sum, o) => sum + o.pricing.totalFee, 0);
+  const driverAmount = (o: CompletedOrder) => Number(o.pricing.driverPayout ?? 0);
+  const todayEarnings = todayOrders.reduce((sum, o) => sum + driverAmount(o), 0);
+  const totalEarnings = orders.reduce((sum, o) => sum + driverAmount(o), 0);
 
   if (loading) return (
     <View style={styles.loadingContainer}><ActivityIndicator size="large" color={theme.colors.brand} /></View>
@@ -95,7 +96,7 @@ export default function EarningsScreen() {
                   {date ? date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
                 </Text>
               </View>
-              <Text style={styles.orderValue}>+ R$ {o.pricing.totalFee.toFixed(2)}</Text>
+              <Text style={styles.orderValue}>+ R$ {driverAmount(o).toFixed(2)}</Text>
             </View>
           );
         })
