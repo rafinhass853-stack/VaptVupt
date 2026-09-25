@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions, db } from "../lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { } from "firebase/firestore";
 import { useStore } from "../context/StoreContext";
 import { autocompleteAddress, calculateRoute } from "../lib/maps";
 import type { GeocodedAddress, RouteResult } from "../lib/maps";
