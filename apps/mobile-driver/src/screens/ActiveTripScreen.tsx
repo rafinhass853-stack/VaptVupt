@@ -57,14 +57,20 @@ export default function ActiveTripScreen() {
   const handleCollect = async () => {
     if (!order) return;
     try {
-      await updateDoc(doc(db, "orders", order.id), { status: "COLLECTED" });
+      const updateFn = httpsCallable(functions, "updateOrderStatus");
+      await updateFn({ orderId: order.id, status: "COLLECTED" });
       setStep("TO_CUSTOMER");
     } catch (err: any) { Alert.alert("Erro", err.message); }
   };
 
-  const handleArrived = () => {
-    setStep("ARRIVED");
-    setShowCodeModal(true);
+  const handleArrived = async () => {
+    if (!order) return;
+    try {
+      const updateFn = httpsCallable(functions, "updateOrderStatus");
+      await updateFn({ orderId: order.id, status: "ARRIVING_DESTINATION" });
+      setStep("ARRIVED");
+      setShowCodeModal(true);
+    } catch (err: any) { Alert.alert("Erro", err.message || "Não foi possível atualizar o status."); }
   };
 
   const handleVerifyCode = async () => {
