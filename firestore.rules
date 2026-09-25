@@ -50,7 +50,11 @@ service cloud.firestore {
     // DRIVERS
     // ============================================
     match /drivers/{driverId} {
-      allow read: if isAdmin() || isOwnDriver(driverId);
+      allow read: if isAdmin()
+        || isOwnDriver(driverId)
+        || (isAuthenticated()
+            && request.auth.token.role == 'store'
+            && resource.data.activeStoreId == request.auth.token.storeId);
 
       // Criação: o próprio driver (auto-cadastro) ou admin
       allow create: if isOwnDriver(driverId) || isAdmin();
@@ -62,7 +66,7 @@ service cloud.firestore {
         || (isOwnDriver(driverId) 
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
               'approved', 'blocked', 'blockReason', 'rating', 'totalDeliveries',
-              'acceptanceRate', 'cancellationRate', 'createdAt'
+              'acceptanceRate', 'cancellationRate', 'createdAt', 'activeStoreId'
             ]));
 
       allow delete: if isAdmin();
