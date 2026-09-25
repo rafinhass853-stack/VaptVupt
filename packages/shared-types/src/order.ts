@@ -28,6 +28,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   DELIVERED: "Entregue",
   CANCELLED: "Cancelado",
   FAILED: "Falhou",
+  PROBLEM: "Problema",
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
@@ -42,6 +43,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   DELIVERED: "green",
   CANCELLED: "red",
   FAILED: "red",
+  PROBLEM: "red",
 };
 
 // Transições permitidas (state machine)
@@ -57,6 +59,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   DELIVERED: [],
   CANCELLED: [],
   FAILED: [],
+  PROBLEM: [],
 };
 
 export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
