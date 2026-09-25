@@ -38,7 +38,7 @@ export default function OfferModal({
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     if (visible && offer) {
       setTimeLeft(30);
