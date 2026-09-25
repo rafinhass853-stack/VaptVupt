@@ -1,0 +1,24 @@
+import {useEffect,useState} from "react";
+import {collection,onSnapshot} from "firebase/firestore";
+import {db} from "../lib/firebase";
+import LiveMap from "../components/LiveMap";
+import type { MapMarker } from "../components/LiveMap";
+import {Bike ,Package,Search,Truck,Activity} from "lucide-react";
+
+type Driver={id:string;name?:string;status?:string;lat?:number;lng?:number;activeOrderId?:string|null};
+type Order={id:string;status:string;storeName?:string;assignedDriverId?:string|null;stops?:any[];pricing?:{distanceKm?:number;totalFee?:number}};
+
+const statusLabel=(s:string)=>({ONLINE:"Disponível",IN_TRIP:"Em entrega",OFFLINE:"Offline"} as Record<string,string>)[s]||s;
+export default function Operations(){
+ const [drivers,setDrivers]=useState<Driver[]>([]),[orders,setOrders]=useState<Order[]>([]),[search,setSearch]=useState("");
+ useEffect(()=>onSnapshot(collection(db,"drivers"),s=>setDrivers(s.docs.map(d=>({id:d.id,...d.data()} as Driver)))),[]);
+ useEffect(()=>onSnapshot(collection(db,"orders"),s=>setOrders(s.docs.map(d=>({id:d.id,...d.data()} as Order)))),[]);
+ const markers:MapMarker[]=drivers.filter(d=>typeof d.lat==="number"&&typeof d.lng==="number").map(d=>({id:d.id,lat:d.lat!,lng:d.lng!,name:d.name||"Entregador",status:d.status||"OFFLINE",type:"driver"}));
+ const filtered=drivers.filter(d=>(d.name||"").toLowerCase().includes(search.toLowerCase()));
+ return <div className="p-4 sm:p-6 lg:p-8 max-w-[1800px] mx-auto"><div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6"><div><p className="text-sm font-semibold text-blue-600">Operação</p><h1 className="text-3xl font-bold text-slate-900">Mapa operacional</h1><p className="text-slate-500 mt-1">Acompanhe entregadores e pedidos em tempo real.</p></div><div className="flex gap-2 text-xs font-semibold"><span className="px-3 py-2 rounded-full bg-emerald-50 text-emerald-700">{drivers.filter(d=>d.status==="ONLINE").length} disponíveis</span><span className="px-3 py-2 rounded-full bg-blue-50 text-blue-700">{orders.filter(o=>o.assignedDriverId).length} atribuídos</span></div></div>
+ <div className="grid xl:grid-cols-[1fr_360px] gap-5"><div className="bg-white border border-slate-200 rounded-2xl overflow-hidden h-[calc(100vh-190px)] min-h-[540px]"><LiveMap markers={markers} zoom={12}/></div>
+ <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden h-[calc(100vh-190px)] min-h-[540px]"><div className="p-4 border-b border-slate-200"><div className="relative"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar entregador" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-100"/></div></div><div className="p-3 overflow-y-auto h-full">{filtered.map(d=>{const active=orders.find(o=>o.id===d.activeOrderId);return <div key={d.id} className="p-4 rounded-xl border border-slate-100 hover:bg-slate-50 mb-2"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${d.status==="ONLINE"?"bg-emerald-100 text-emerald-700":d.status==="IN_TRIP"?"bg-blue-100 text-blue-700":"bg-slate-100 text-slate-500"}`}><Bike size={19}/></div><div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{d.name||"Sem nome"}</p><p className="text-xs text-slate-500">{statusLabel(d.status||"OFFLINE")}</p></div><span className="w-2.5 h-2.5 rounded-full bg-current opacity-80"/></div>{active&&<div className="mt-3 p-3 bg-blue-50 rounded-lg text-xs text-blue-800"><p className="font-semibold">Pedido #{active.id.slice(0,8)}</p><p className="mt-1">{active.storeName||"Loja"} · {active.pricing?.distanceKm?.toFixed?.(1)||"—"} km</p></div>}</div>})}{filtered.length===0&&<div className="p-10 text-center text-sm text-slate-500">Nenhum entregador encontrado.</div>}</div></div></div>
+ <div className="grid md:grid-cols-3 gap-4 mt-5"><Mini icon={Truck} label="Entregadores com localização" value={markers.length}/><Mini icon={Package} label="Pedidos ativos" value={orders.filter(o=>!["DELIVERED","CANCELLED","FAILED"].includes(o.status)).length}/><Mini icon={Activity} label="Ofertas em andamento" value={orders.filter(o=>o.status==="OFFERED").length}/></div>
+ </div>;
+}
+function Mini({icon:Icon,label,value}:{icon:any;label:string;value:number}){return <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3"><div className="p-2.5 bg-slate-100 rounded-xl"><Icon size={18}/></div><div><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold">{value}</p></div></div>}

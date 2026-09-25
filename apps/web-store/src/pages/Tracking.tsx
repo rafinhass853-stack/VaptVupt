@@ -27,6 +27,7 @@ interface Driver {
   lat?: number;
   lng?: number;
   activeOrderId?: string | null;
+  activeStoreId?: string | null;
 }
 
 export default function Tracking() {
@@ -59,23 +60,29 @@ export default function Tracking() {
   }, [store]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "drivers"), (snap) => {
+    if (!store) return;
+    const q = query(
+      collection(db, "drivers"),
+      where("activeStoreId", "==", store.id)
+    );
+    const unsub = onSnapshot(q, (snap) => {
       const list: Driver[] = [];
       snap.forEach((docSnap) => {
         const data = docSnap.data();
         list.push({
           id: docSnap.id,
-          name: data.name || "Motoboy",
-          status: data.status || "OFFLINE",
+          name: data.name || data.fullName || "Motoboy",
+          status: data.status || data.driverStatus || "OFFLINE",
           lat: data.lat,
           lng: data.lng,
           activeOrderId: data.activeOrderId,
+          activeStoreId: data.activeStoreId,
         });
       });
       setDrivers(list);
     });
     return () => unsub();
-  }, []);
+  }, [store]);
 
   useEffect(() => {
     const list: MapMarker[] = [];
@@ -128,6 +135,7 @@ export default function Tracking() {
 
   const onlineDrivers = drivers.filter((d) => d.status === "ONLINE").length;
   const inTripDrivers = drivers.filter((d) => d.status === "IN_TRIP").length;
+  const assignedDriverIds = new Set(activeOrders.map((o) => o.assignedDriverId).filter(Boolean));
 
   return (
     <div className="h-screen flex flex-col">
@@ -150,12 +158,16 @@ export default function Tracking() {
           <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-2xl shadow-lg p-4 z-[1000] space-y-3">
             <StatLine
               color="emerald"
-              label={`${onlineDrivers} motoboy(s) online`}
+              label={`${onlineDrivers} motoboy(s) no seu atendimento`}
             />
             <StatLine color="blue" label={`${inTripDrivers} em rota`} />
             <StatLine
               color="amber"
               label={`${activeOrders.length} pedido(s) ativo(s)`}
+            />
+            <StatLine
+              color="blue"
+              label={`${assignedDriverIds.size} motoboy(s) envolvidos`}
             />
           </div>
         </div>

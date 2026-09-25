@@ -8,6 +8,7 @@ import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
 import { assertTransition } from "./state/orderStateMachine";
+import type { OrderStatus } from "./state/orderStateMachine";
 import { logAudit } from "./services/auditService";
 import {
   requireAuth,
@@ -31,9 +32,11 @@ const db = admin.firestore();
 // ============ TIPOS ============
 interface PricingSettings {
   baseFee: number;
+  minimumFee: number;
   baseKm: number;
   perKmFee: number;
   extraStopFee: number;
+  platformPercent: number;
 }
 
 interface OrderItem {
@@ -59,9 +62,17 @@ interface Stop {
 async function getPricing(): Promise<PricingSettings> {
   const doc = await db.collection("settings").doc("pricing").get();
   if (!doc.exists) {
-    return { baseFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0 };
+    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20 };
   }
-  return doc.data() as PricingSettings;
+  const data = doc.data() as Partial<PricingSettings>;
+  return {
+    baseFee: Number(data.baseFee ?? 8),
+    minimumFee: Number(data.minimumFee ?? data.baseFee ?? 8),
+    baseKm: Number(data.baseKm ?? 3),
+    perKmFee: Number(data.perKmFee ?? 1.5),
+    extraStopFee: Number(data.extraStopFee ?? 2),
+    platformPercent: Math.min(100, Math.max(0, Number(data.platformPercent ?? 20))),
+  };
 }
 
 // ============ 1. CREATE DELIVERY ORDER ============
@@ -102,10 +113,13 @@ export const createDeliveryOrder = onCall(async (request) => {
   const pricing = await getPricing();
   const extraStops = stops.length - 1;
   const billableKm = Math.max(0, distance - pricing.baseKm);
-  const totalFee =
+  const calculatedFee =
     pricing.baseFee +
     billableKm * pricing.perKmFee +
     extraStops * pricing.extraStopFee;
+  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+  const platformFee = totalFee * (pricing.platformPercent / 100);
+  const driverPayout = totalFee - platformFee;
 
   const totalOrderValue = stops.reduce((sum, stop) => {
     const stopTotal = (stop.items || []).reduce(
@@ -165,7 +179,18 @@ export const createDeliveryOrder = onCall(async (request) => {
       rejectedDriverIds: [],
       offerExpiresAt: null,
       deliveryCodeHash,
-      pricing: { totalFee, distanceKm: distance },
+      pricing: {
+        totalFee,
+        distanceKm: distance,
+        baseFee: pricing.baseFee,
+        minimumFee: pricing.minimumFee,
+        baseKm: pricing.baseKm,
+        perKmFee: pricing.perKmFee,
+        extraStopFee: pricing.extraStopFee,
+        platformPercent: pricing.platformPercent,
+        platformFee,
+        driverPayout,
+      },
       stops: stops,
       totalOrderValue,
       idempotencyKey: idempotencyKey || null,
@@ -214,6 +239,27 @@ export const createDeliveryOrder = onCall(async (request) => {
   });
 
   return { ...result, pin };
+});
+
+
+// ============ DELIVERY PRICE QUOTE ============
+export const quoteDeliveryPrice = onCall(async (request) => {
+  requireAuth(request.auth);
+  const distanceKm = validateDistance(Number(request.data?.totalDistanceKm));
+  const stopsCount = Math.max(1, Number(request.data?.stopsCount || 1));
+  const pricing = await getPricing();
+  const extraStops = Math.max(0, stopsCount - 1);
+  const billableKm = Math.max(0, distanceKm - pricing.baseKm);
+  const calculatedFee =
+    pricing.baseFee +
+    billableKm * pricing.perKmFee +
+    extraStops * pricing.extraStopFee;
+  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+  return {
+    totalFee,
+    distanceKm,
+    durationRule: "ADMIN_PRICING",
+  };
 });
 
 // ============ 2. ACCEPT ORDER ============
@@ -278,6 +324,7 @@ export const acceptOrder = onCall(async (request) => {
     transaction.update(driverRef, {
       driverStatus: "IN_TRIP",
       activeOrderId: orderId,
+      activeStoreId: order.storeId || null,
     });
 
     return { success: true, orderId };
@@ -292,6 +339,75 @@ export const acceptOrder = onCall(async (request) => {
   });
 
   return result;
+});
+
+// ============ DRIVER ORDER ACTIONS ============
+export const updateOrderStatus = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { orderId, status } = request.data as { orderId: string; status: OrderStatus };
+  if (!orderId || !status) throw new HttpsError("invalid-argument", "orderId e status obrigatórios.");
+
+  const allowed = ["ARRIVING_PICKUP", "COLLECTED", "IN_DELIVERY", "ARRIVING_DESTINATION"];
+  if (!allowed.includes(status)) throw new HttpsError("invalid-argument", "Status operacional inválido.");
+
+  const orderRef = db.collection("orders").doc(orderId);
+  const driverRef = db.collection("drivers").doc(uid);
+
+  await db.runTransaction(async (transaction) => {
+    const [orderDoc, driverDoc] = await Promise.all([transaction.get(orderRef), transaction.get(driverRef)]);
+    if (!orderDoc.exists || !driverDoc.exists) throw new HttpsError("not-found", "Pedido ou entregador não encontrado.");
+    const order = orderDoc.data()!;
+    const driver = driverDoc.data()!;
+    if (order.assignedDriverId !== uid || driver.activeOrderId !== orderId) throw new HttpsError("permission-denied", "Pedido não pertence ao entregador.");
+    assertTransition(order.status, status);
+
+    const update: Record<string, any> = {
+      status,
+      statusHistory: admin.firestore.FieldValue.arrayUnion({
+        status,
+        at: admin.firestore.Timestamp.now(),
+        by: uid,
+      }),
+    };
+    if (status === "ARRIVING_PICKUP") update.arrivingPickupAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "COLLECTED") update.collectedAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "IN_DELIVERY") update.inDeliveryAt = admin.firestore.FieldValue.serverTimestamp();
+    if (status === "ARRIVING_DESTINATION") update.arrivingDestinationAt = admin.firestore.FieldValue.serverTimestamp();
+    transaction.update(orderRef, update);
+  });
+
+  await logAudit({ action: "ORDER_STATUS_UPDATED", actorId: uid, actorType: "driver", targetId: orderId, targetType: "order", details: { status } });
+  return { success: true, orderId, status };
+});
+
+export const rejectOrder = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { orderId } = request.data as { orderId: string };
+  if (!orderId) throw new HttpsError("invalid-argument", "orderId obrigatório.");
+  const orderRef = db.collection("orders").doc(orderId);
+  await db.runTransaction(async (transaction) => {
+    const orderDoc = await transaction.get(orderRef);
+    if (!orderDoc.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+    const order = orderDoc.data()!;
+    if (order.status !== "OFFERED" || order.assignedDriverId !== uid) {
+      throw new HttpsError("failed-precondition", "Esta oferta não está disponível para você.");
+    }
+    assertTransition(order.status, "SEARCHING_DRIVER");
+    transaction.update(orderRef, {
+      status: "SEARCHING_DRIVER",
+      assignedDriverId: null,
+      offerExpiresAt: null,
+      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(uid),
+      statusHistory: admin.firestore.FieldValue.arrayUnion({
+        status: "SEARCHING_DRIVER",
+        at: admin.firestore.Timestamp.now(),
+        by: uid,
+        reason: "DRIVER_REJECTED",
+      }),
+    });
+  });
+  await logAudit({ action: "ORDER_REJECTED", actorId: uid, actorType: "driver", targetId: orderId, targetType: "order" });
+  return { success: true, orderId };
 });
 
 // ============ 3. VERIFY DELIVERY CODE ============
@@ -346,12 +462,35 @@ export const verifyDeliveryCode = onCall(async (request) => {
         at: admin.firestore.Timestamp.now(),
         by: uid,
       }),
+      finance: {
+        customerCharge: order.pricing?.totalFee || 0,
+        platformFee: order.pricing?.platformFee || 0,
+        driverPayout: order.pricing?.driverPayout || 0,
+        settledAt: admin.firestore.Timestamp.now(),
+      },
     });
+
+    const driverPayout = Number(order.pricing?.driverPayout || 0);
+    if (driverPayout > 0) {
+      const earningsRef = db.collection("driverEarnings").doc();
+      transaction.set(earningsRef, {
+        driverId: uid,
+        orderId,
+        storeId: order.storeId || null,
+        amount: driverPayout,
+        status: "PENDING",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
 
     transaction.update(driverRef, {
       driverStatus: "ONLINE",
       activeOrderId: null,
+      activeStoreId: null,
       totalDeliveries: admin.firestore.FieldValue.increment(1),
+      ...(driverPayout > 0
+        ? { pendingEarnings: admin.firestore.FieldValue.increment(driverPayout) }
+        : {}),
     });
 
     return { success: true };
@@ -377,20 +516,35 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
     .where("offerExpiresAt", "<", now)
     .get();
 
-  const batch = db.batch();
-  expired.forEach((doc) => {
-    const docData = doc.data();
-    batch.update(doc.ref, {
-      status: "SEARCHING_DRIVER",
-      assignedDriverId: null,
-      offerExpiresAt: null,
-      rejectedDriverIds: admin.firestore.FieldValue.arrayUnion(
-        docData.assignedDriverId
-      ),
-    });
-  });
+  await Promise.all(
+    expired.docs.map(async (doc) => {
+      await db.runTransaction(async (transaction) => {
+        const current = await transaction.get(doc.ref);
+        if (!current.exists) return;
+        const data = current.data()!;
+        if (data.status !== "OFFERED" || !data.offerExpiresAt || data.offerExpiresAt.toMillis() >= now.toMillis()) {
+          return;
+        }
+        assertTransition(data.status, "SEARCHING_DRIVER");
+        const rejectedDriverIds = data.assignedDriverId
+          ? admin.firestore.FieldValue.arrayUnion(data.assignedDriverId)
+          : (data.rejectedDriverIds || []);
 
-  await batch.commit();
+        transaction.update(doc.ref, {
+          status: "SEARCHING_DRIVER",
+          assignedDriverId: null,
+          offerExpiresAt: null,
+          rejectedDriverIds,
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "SEARCHING_DRIVER",
+            at: now,
+            by: "system",
+            reason: "OFFER_EXPIRED",
+          }),
+        });
+      });
+    })
+  );
   console.log(`Processadas ${expired.size} ofertas expiradas.`);
 });
 
@@ -450,6 +604,59 @@ export const matchingDriver = onDocumentUpdated(
     );
   }
 );
+
+// ============ 6. RETRY SEARCHING ORDERS ============
+// Reprocessa pedidos que continuam procurando entregador. Isso evita que
+// um pedido fique indefinidamente em SEARCHING_DRIVER quando não havia
+// candidato disponível no primeiro disparo do matching.
+export const retrySearchingOrders = onSchedule("every 1 minutes", async () => {
+  const snapshot = await db
+    .collection("orders")
+    .where("status", "==", "SEARCHING_DRIVER")
+    .limit(50)
+    .get();
+
+  let offered = 0;
+
+  for (const orderDoc of snapshot.docs) {
+    const order = orderDoc.data();
+    const stops = order.stops || [];
+    const pickup = stops[0];
+
+    if (typeof pickup?.lat !== "number" || typeof pickup?.lng !== "number") {
+      continue;
+    }
+
+    const rejectedIds: string[] = order.rejectedDriverIds || [];
+    const best = await findBestDriver(pickup.lat, pickup.lng, rejectedIds);
+    if (!best) continue;
+
+    const now = admin.firestore.Timestamp.now();
+    const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + 30000);
+
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(orderDoc.ref);
+      if (!current.exists || current.data()?.status !== "SEARCHING_DRIVER") return;
+
+      transaction.update(orderDoc.ref, {
+        status: "OFFERED",
+        assignedDriverId: best.driverId,
+        offerExpiresAt: expiresAt,
+        statusHistory: admin.firestore.FieldValue.arrayUnion({
+          status: "OFFERED",
+          at: now,
+          by: "system",
+          driverId: best.driverId,
+          distanceKm: best.distanceKm,
+          reason: "SEARCH_RETRY",
+        }),
+      });
+      offered += 1;
+    });
+  }
+
+  console.log(`[MATCHING] Retry: ${snapshot.size} em busca, ${offered} novas ofertas.`);
+});
 
 // ============ 6. SET USER ROLE (ADMIN) ============
 export const setUserRole = onCall(async (request) => {
@@ -826,6 +1033,7 @@ export const createCourier = onCall(async (request) => {
     status: "active",
     driverStatus: "OFFLINE",
     activeOrderId: null,
+    activeStoreId: null,
     fcmToken: "",
     currentGeohash: "",
     approved: true,
@@ -947,3 +1155,6 @@ export const createStore = onCall(async (request) => {
 
   return { success: true, storeId: storeRef.id };
 });
+
+// Plataforma operacional avançada
+export { getOperationsKpis, getFinanceSummary, markDriverPayoutPaid, registerDriverLocation, monitorOperationalAlerts, createSupportTicket } from "./platformFunctions";

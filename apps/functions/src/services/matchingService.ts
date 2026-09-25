@@ -9,23 +9,38 @@ export interface MatchingCandidate {
   lastLocationUpdate: Date | null;
 }
 
-const MATCHING_CONFIG = {
+const DEFAULT_MATCHING_CONFIG = {
   radii: [3, 5, 10, 20, 50],
   maxCandidates: 20,
   maxAgeMinutes: 5,
 };
+
+async function getMatchingConfig() {
+  const db = admin.firestore();
+  const snap = await db.collection("settings").doc("matching").get();
+  if (!snap.exists) return DEFAULT_MATCHING_CONFIG;
+  const data = snap.data() || {};
+  const radii = Array.isArray(data.radii) ? data.radii.filter((n: any) => typeof n === "number" && n > 0 && n <= 100) : DEFAULT_MATCHING_CONFIG.radii;
+  return {
+    radii: radii.length ? radii : DEFAULT_MATCHING_CONFIG.radii,
+    maxCandidates: typeof data.maxCandidates === "number" && data.maxCandidates > 0 ? Math.min(data.maxCandidates, 100) : DEFAULT_MATCHING_CONFIG.maxCandidates,
+    maxAgeMinutes: typeof data.maxAgeMinutes === "number" && data.maxAgeMinutes > 0 ? Math.min(data.maxAgeMinutes, 30) : DEFAULT_MATCHING_CONFIG.maxAgeMinutes,
+  };
+}
 
 export async function findBestDriver(
   pickupLat: number,
   pickupLng: number,
   rejectedIds: string[] = []
 ): Promise<MatchingCandidate | null> {
-  for (const radiusKm of MATCHING_CONFIG.radii) {
+  const config = await getMatchingConfig();
+  for (const radiusKm of config.radii) {
     const candidates = await findCandidatesInRadius(
       pickupLat,
       pickupLng,
       radiusKm,
-      rejectedIds
+      rejectedIds,
+      config.maxAgeMinutes
     );
     if (candidates.length > 0) {
       console.log(`[MATCHING] Raio ${radiusKm}km: ${candidates.length} candidato(s)`);
@@ -39,14 +54,15 @@ async function findCandidatesInRadius(
   lat: number,
   lng: number,
   radiusKm: number,
-  rejectedIds: string[]
+  rejectedIds: string[],
+  maxAgeMinutes: number
 ): Promise<MatchingCandidate[]> {
   // Acessa o Firestore de forma lazy (após initializeApp)
   const db = admin.firestore();
 
   const bounds = geohashQueryBounds(lat, lng, radiusKm);
   const now = new Date();
-  const minAge = new Date(now.getTime() - MATCHING_CONFIG.maxAgeMinutes * 60 * 1000);
+  const minAge = new Date(now.getTime() - maxAgeMinutes * 60 * 1000);
 
   const queries = bounds.map(([start, end]) =>
     db
@@ -97,5 +113,6 @@ async function findCandidatesInRadius(
     return a.totalDeliveries - b.totalDeliveries;
   });
 
-  return candidates.slice(0, MATCHING_CONFIG.maxCandidates);
+  const config = await getMatchingConfig();
+  return candidates.slice(0, config.maxCandidates);
 }

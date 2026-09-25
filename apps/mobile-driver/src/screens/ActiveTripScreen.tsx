@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Modal, TextInput, Linking, Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -57,14 +57,20 @@ export default function ActiveTripScreen() {
   const handleCollect = async () => {
     if (!order) return;
     try {
-      await updateDoc(doc(db, "orders", order.id), { status: "COLLECTED" });
+      const updateFn = httpsCallable(functions, "updateOrderStatus");
+      await updateFn({ orderId: order.id, status: "COLLECTED" });
       setStep("TO_CUSTOMER");
     } catch (err: any) { Alert.alert("Erro", err.message); }
   };
 
-  const handleArrived = () => {
-    setStep("ARRIVED");
-    setShowCodeModal(true);
+  const handleArrived = async () => {
+    if (!order) return;
+    try {
+      const updateFn = httpsCallable(functions, "updateOrderStatus");
+      await updateFn({ orderId: order.id, status: "ARRIVING_DESTINATION" });
+      setStep("ARRIVED");
+      setShowCodeModal(true);
+    } catch (err: any) { Alert.alert("Erro", err.message || "Não foi possível atualizar o status."); }
   };
 
   const handleVerifyCode = async () => {
@@ -113,6 +119,7 @@ export default function ActiveTripScreen() {
           pickupLng={pickup.lng || -46.6565}
           deliveryLat={delivery.lat || -23.5613}
           deliveryLng={delivery.lng || -46.6565}
+          activeLeg={step === "TO_CUSTOMER" || step === "ARRIVED" ? "TO_CUSTOMER" : "TO_STORE"}
         />
       </View>
 
@@ -144,7 +151,7 @@ export default function ActiveTripScreen() {
         </View>
 
         {/* Stops details */}
-        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
+        <View style={styles.navigationHint}><Ionicons name="navigate" size={18} color={theme.colors.info} /><Text style={styles.navigationHintText}>{step === "TO_CUSTOMER" || step === "ARRIVED" ? "Rota ativa: destino do cliente" : "Rota ativa: coleta na loja"} · se sair da rota, o trajeto é recalculado automaticamente.</Text></View>\n\n        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
         {order.stops.map((stop: any, i: number) => (
           <TouchableOpacity key={i} style={styles.stopCard} onPress={() => setExpandedStop(expandedStop === i ? null : i)}>
             <View style={styles.stopHeader}>
@@ -176,7 +183,7 @@ export default function ActiveTripScreen() {
 
         {/* Action button */}
         {step === "TO_STORE" && (
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: "#f59e0b" }]} onPress={() => setStep("AT_STORE")}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: "#f59e0b" }]} onPress={async () => { try { const updateFn = httpsCallable(functions, "updateOrderStatus"); await updateFn({ orderId: order.id, status: "ARRIVING_PICKUP" }); setStep("AT_STORE"); } catch (err: any) { Alert.alert("Erro", err.message || "Não foi possível atualizar o status."); } }}>
             <Ionicons name="checkmark" size={22} color="#fff" />
             <Text style={styles.actionButtonText}>Cheguei na Loja</Text>
           </TouchableOpacity>
@@ -257,7 +264,7 @@ const styles = StyleSheet.create({
   stepTitle: { color: theme.colors.textMuted, fontSize: 14, fontWeight: "600" },
   stepTitleActive: { color: theme.colors.text },
   stepSubtitle: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
-  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
+  navigationHint: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(59,130,246,0.12)", borderWidth: 1, borderColor: "rgba(59,130,246,0.25)", borderRadius: 12, padding: 12, marginBottom: 16 },\n  navigationHintText: { flex: 1, color: "#93c5fd", fontSize: 12, lineHeight: 17 },\n  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
   stopCard: { backgroundColor: theme.colors.bgCard, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   stopHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   stopNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.brand, alignItems: "center", justifyContent: "center" },
