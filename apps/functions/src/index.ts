@@ -1155,3 +1155,6 @@ export const createStore = onCall(async (request) => {
 
   return { success: true, storeId: storeRef.id };
 });
+
+// Plataforma operacional avançada
+export { getOperationsKpis, getFinanceSummary, markDriverPayoutPaid, registerDriverLocation, monitorOperationalAlerts, createSupportTicket } from "./platformFunctions";
