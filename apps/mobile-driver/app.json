@@ -9,12 +9,19 @@
       "backgroundColor": "#1e293b"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "O VaptVupt usa sua localização para mostrar sua posição no mapa e recalcular a rota da entrega."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#1e293b"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
