@@ -457,13 +457,15 @@ export const handleExpiredOffers = onSchedule("every 1 minutes", async () => {
           return;
         }
         assertTransition(data.status, "SEARCHING_DRIVER");
+        const rejectedDriverIds = data.assignedDriverId
+          ? admin.firestore.FieldValue.arrayUnion(data.assignedDriverId)
+          : (data.rejectedDriverIds || []);
+
         transaction.update(doc.ref, {
           status: "SEARCHING_DRIVER",
           assignedDriverId: null,
           offerExpiresAt: null,
-          rejectedDriverIds: data.assignedDriverId
-            ? admin.firestore.FieldValue.arrayUnion(data.assignedDriverId)
-            : admin.firestore.FieldValue.arrayUnion(),
+          rejectedDriverIds,
           statusHistory: admin.firestore.FieldValue.arrayUnion({
             status: "SEARCHING_DRIVER",
             at: now,
