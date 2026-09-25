@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
+import { startBackgroundLocation, stopBackgroundLocation } from "./backgroundLocation";
 
 let subscription: Location.LocationSubscription | null = null;
 
@@ -17,6 +18,8 @@ export async function startLocationTracking(driverId: string) {
   });
 
   await updateDriverLocation(driverId, current.coords.latitude, current.coords.longitude);
+
+  try { await startBackgroundLocation(driverId); } catch (error) { console.warn("Background location indisponível:", error); }
 
   subscription = await Location.watchPositionAsync(
     {
@@ -50,4 +53,5 @@ export async function stopLocationTracking() {
   if (!subscription) return;
   subscription.remove();
   subscription = null;
+  try { await stopBackgroundLocation(); } catch {}
 }
