@@ -101,8 +101,15 @@ export default function ActiveTripScreen() {
 
   if (!order) return (
     <View style={styles.emptyContainer}>
-      <Ionicons name="receipt-outline" size={64} color={theme.colors.textMuted} />
-      <Text style={styles.emptyText}>Nenhum pedido ativo</Text>
+      <View style={styles.emptyIcon}>
+        <Ionicons name="bicycle-outline" size={34} color={theme.colors.brandLight} />
+      </View>
+      <Text style={styles.emptyTitle}>Nenhuma corrida em andamento</Text>
+      <Text style={styles.emptyText}>Quando você aceitar uma corrida, os detalhes, a rota e as próximas etapas aparecerão aqui.</Text>
+      <View style={styles.emptyHint}>
+        <Ionicons name="information-circle-outline" size={18} color={theme.colors.info} />
+        <Text style={styles.emptyHintText}>As novas ofertas aparecem na tela Início.</Text>
+      </View>
     </View>
   );
 
@@ -124,6 +131,13 @@ export default function ActiveTripScreen() {
       </View>
 
       <ScrollView style={styles.infoContainer} contentContainerStyle={styles.infoContent}>
+        <View style={styles.tripHeader}>
+          <View>
+            <Text style={styles.tripEyebrow}>CORRIDA EM ANDAMENTO</Text>
+            <Text style={styles.tripHeading}>Acompanhe sua entrega</Text>
+          </View>
+          <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>ATIVA</Text></View>
+        </View>
         {/* Fee */}
         <View style={styles.feeBanner}>
           <View>
@@ -151,7 +165,9 @@ export default function ActiveTripScreen() {
         </View>
 
         {/* Stops details */}
-        <View style={styles.navigationHint}><Ionicons name="navigate" size={18} color={theme.colors.info} /><Text style={styles.navigationHintText}>{step === "TO_CUSTOMER" || step === "ARRIVED" ? "Rota ativa: destino do cliente" : "Rota ativa: coleta na loja"} · se sair da rota, o trajeto é recalculado automaticamente.</Text></View>\n\n        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
+        <View style={styles.navigationHint}><Ionicons name="navigate" size={18} color={theme.colors.info} /><Text style={styles.navigationHintText}>{step === "TO_CUSTOMER" || step === "ARRIVED" ? "Rota ativa: destino do cliente" : "Rota ativa: coleta na loja"} · se sair da rota, o trajeto é recalculado automaticamente.</Text></View>
+
+        <Text style={styles.sectionLabel}>PARADAS ({order.stops.length})</Text>
         {order.stops.map((stop: any, i: number) => (
           <TouchableOpacity key={i} style={styles.stopCard} onPress={() => setExpandedStop(expandedStop === i ? null : i)}>
             <View style={styles.stopHeader}>
@@ -244,11 +260,21 @@ function Step({ number, icon, title, subtitle, active, done }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   loadingContainer: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center", alignItems: "center" },
-  emptyContainer: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center", alignItems: "center" },
-  emptyText: { color: theme.colors.text, fontSize: 18, fontWeight: "bold", marginTop: 16 },
+  emptyContainer: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: "center", alignItems: "center", padding: 28 },
+  emptyIcon: { width: 76, height: 76, borderRadius: 24, backgroundColor: "rgba(16,185,129,0.13)", alignItems: "center", justifyContent: "center", marginBottom: 18 },
+  emptyTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "800", textAlign: "center" },
+  emptyText: { color: theme.colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 9, textAlign: "center", maxWidth: 300 }, 
+  emptyHint: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(59,130,246,0.1)", borderRadius: 12, padding: 12, marginTop: 20 },
+  emptyHintText: { color: theme.colors.textSecondary, fontSize: 11, flexShrink: 1 },
   mapContainer: { height: "38%", padding: 12 },
   infoContainer: { flex: 1, backgroundColor: theme.colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -16 },
-  infoContent: { padding: 20, paddingBottom: 40 },
+  infoContent: { padding: 18, paddingBottom: 40 },
+  tripHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  tripEyebrow: { color: theme.colors.brandLight, fontSize: 9, fontWeight: "800", letterSpacing: 1.1, marginBottom: 4 },
+  tripHeading: { color: theme.colors.text, fontSize: 18, fontWeight: "800" },
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(16,185,129,0.14)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.brandLight },
+  liveText: { color: theme.colors.brandLight, fontSize: 9, fontWeight: "800" },
   feeBanner: { backgroundColor: "#064e3b", padding: 16, borderRadius: 16, marginBottom: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   feeLabel: { color: theme.colors.brandLight, fontSize: 12, fontWeight: "600" },
   feeValue: { color: "#fff", fontSize: 28, fontWeight: "bold", marginTop: 4 },
@@ -264,7 +290,9 @@ const styles = StyleSheet.create({
   stepTitle: { color: theme.colors.textMuted, fontSize: 14, fontWeight: "600" },
   stepTitleActive: { color: theme.colors.text },
   stepSubtitle: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
-  navigationHint: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(59,130,246,0.12)", borderWidth: 1, borderColor: "rgba(59,130,246,0.25)", borderRadius: 12, padding: 12, marginBottom: 16 },\n  navigationHintText: { flex: 1, color: "#93c5fd", fontSize: 12, lineHeight: 17 },\n  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
+  navigationHint: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(59,130,246,0.12)", borderWidth: 1, borderColor: "rgba(59,130,246,0.25)", borderRadius: 12, padding: 12, marginBottom: 16 },
+  navigationHintText: { flex: 1, color: "#93c5fd", fontSize: 12, lineHeight: 17 },
+  sectionLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10, marginTop: 8 },
   stopCard: { backgroundColor: theme.colors.bgCard, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   stopHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   stopNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.brand, alignItems: "center", justifyContent: "center" },
