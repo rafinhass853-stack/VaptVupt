@@ -88,7 +88,7 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       if (value) {
-        await updateDoc(doc(db, "drivers", user.uid), { status: "ONLINE" });
+        await updateDoc(doc(db, "drivers", user.uid), { status: "ONLINE", driverStatus: "ONLINE" });
         try {
           await startLocationTracking(user.uid);
         } catch (locErr: any) {
@@ -103,7 +103,7 @@ export default function HomeScreen() {
           );
           return;
         }
-        await updateDoc(doc(db, "drivers", user.uid), { status: "OFFLINE" });
+        await updateDoc(doc(db, "drivers", user.uid), { status: "OFFLINE", driverStatus: "OFFLINE" });
         await stopLocationTracking();
         setIsOnline(false);
       }
