@@ -231,3 +231,24 @@ O branch `vaptvupt-professional-overhaul` agora inclui também a base de:
 - preparação para multiempresa, zonas, surge pricing e gateway de pagamento real.
 
 A integração de gateway PIX real permanece separada da função de recarga simulada existente: a arquitetura agora permite substituir o adaptador sem alterar o fluxo operacional.
+
+
+## Controle administrativo implementado
+
+O painel `/administration` concentra a operação administrativa:
+
+- controle de motoboys online/offline, localização e aprovação;
+- aprovação e bloqueio de novos cadastros;
+- controle de lojas online/offline por heartbeat;
+- saldo das lojas e acompanhamento das entregas;
+- gestão financeira dos repasses aos motoboys;
+- geração diária dos lotes de repasse após 00:05 no horário de São Paulo;
+- histórico de repasses e marcação de PIX pago;
+- comissão da plataforma;
+- regras de preço normal ou dinâmico;
+- valor cobrado do estabelecimento e valor calculado para o motoboy;
+- cadastro de loja com slug e endereço estruturado, incluindo CEP quando retornado pelo geocodificador.
+
+### PIX dos motoboys
+
+O backend agora prepara automaticamente os repasses diários em `driverPayouts` após a meia-noite e mantém o histórico idempotente. A transferência PIX efetiva para o banco ainda depende da conexão com um provedor/gateway PIX com credenciais de produção; até essa integração, o administrador consegue registrar o pagamento realizado e manter a conciliação no sistema.
