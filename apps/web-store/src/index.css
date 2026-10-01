@@ -2,10 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --vv-red: #e30613;
+  --vv-red-dark: #b80510;
+  --vv-yellow: #ffc400;
+  --vv-blue: #0057b8;
+  --vv-green: #168b45;
+  --vv-bg: #f7f8fa;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--vv-bg);
+}
+
+body { color: #111827; }
+
+::selection {
+  background: var(--vv-yellow);
+  color: #111827;
 }
 
 .leaflet-container {
@@ -13,3 +30,15 @@ html, body, #root {
   width: 100%;
   z-index: 0;
 }
+
+/* Reforça a identidade em componentes legados que ainda usam verde. */
+.bg-emerald-600 { background-color: var(--vv-red) !important; }
+.hover\:bg-emerald-700:hover { background-color: var(--vv-red-dark) !important; }
+.bg-emerald-700 { background-color: var(--vv-red-dark) !important; }
+.bg-emerald-950 { background-color: #5d0a10 !important; }
+.border-emerald-900 { border-color: #7f1118 !important; }
+.bg-emerald-900 { background-color: #7f1118 !important; }
+.text-emerald-400 { color: var(--vv-yellow) !important; }
+.text-emerald-300 { color: #ffd95c !important; }
+.text-emerald-100 { color: #fff1b8 !important; }
+.focus\:ring-emerald-500:focus { --tw-ring-color: var(--vv-red) !important; }
