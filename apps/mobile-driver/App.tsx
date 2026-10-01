@@ -16,6 +16,8 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import PendingApprovalScreen from "./src/screens/PendingApprovalScreen";
 import BottomNav, { Tab } from "./src/components/BottomNav";
 import { registerForPushNotifications } from "./src/lib/notifications";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "./src/lib/firebase";
 import { theme } from "./src/theme";
 
 function Root() {
@@ -34,8 +36,11 @@ function Root() {
   // Registra token FCM quando o usuário logar
   useEffect(() => {
     if (user && driver) {
-      registerForPushNotifications(user.uid).catch((err) => {
-        console.warn("FCM registration failed:", err);
+      registerForPushNotifications(user.uid).then((token) => {
+        if (token) return updateDoc(doc(db, "drivers", user.uid), { fcmToken: token });
+        return undefined;
+      }).catch((err) => {
+        console.warn("Push registration failed:", err);
       });
     }
   }, [user?.uid, driver?.id]);
