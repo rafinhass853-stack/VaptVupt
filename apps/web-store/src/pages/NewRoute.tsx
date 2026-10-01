@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { httpsCallable } from "firebase/functions";
-import { functions, db } from "../lib/firebase";
+import { functions } from "../lib/firebase";
 import { useStore } from "../context/StoreContext";
 import { autocompleteAddress, calculateRoute } from "../lib/maps";
 import type { GeocodedAddress, RouteResult } from "../lib/maps";
