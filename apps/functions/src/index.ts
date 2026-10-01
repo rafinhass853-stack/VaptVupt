@@ -1158,3 +1158,5 @@ export const createStore = onCall(async (request) => {
 
 // Plataforma operacional avançada
 export { getOperationsKpis, getFinanceSummary, markDriverPayoutPaid, registerDriverLocation, monitorOperationalAlerts, createSupportTicket } from "./platformFunctions";
+
+export { approveDriver, setDriverBlocked, updatePricingSettings, storeHeartbeat, expireStoreOnline, createDriverApplication, processDailyDriverPayouts, markDriverPayoutPaid } from "./adminFunctions";
