@@ -57,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           (snap) => {
             if (snap.exists()) {
               const data = snap.data();
+              if (data?.blocked === true || data?.approved === false) {
+                void signOut(auth);
+                setDriver(null);
+                return;
+              }
               setDriver({
                 id: snap.id,
                 name: data.name || "Motoboy",
