@@ -8,10 +8,10 @@ function requireAdmin(a:any){if(!isAdmin(a))throw new HttpsError("permission-den
 function requireAuth(a:any){if(!a)throw new HttpsError("unauthenticated","Não autenticado.");return a.uid;}
 
 export const approveDriver=onCall(async request=>{
- const adminUid=requireAdmin(request.auth); const driverId=String(request.data?.driverId||""); const approved=request.data?.approved!==false;
+ const adminUid=requireAdmin(request.auth); const driverId=String(request.data?.driverId||""); const approved=request.data?.approved===true;
  if(!driverId)throw new HttpsError("invalid-argument","driverId obrigatório.");
  const ref=db.collection("drivers").doc(driverId); const snap=await ref.get(); if(!snap.exists)throw new HttpsError("not-found","Motoboy não encontrado.");
- await ref.update({approved,approvalStatus:approved?"APPROVED":"PENDING",blocked:approved?snap.data()?.blocked||false:true,approvedAt:approved?admin.firestore.FieldValue.serverTimestamp():null,approvedBy:approved?adminUid:null,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+ await ref.update({approved,approvalStatus:approved?"APPROVED":"PENDING",blocked:approved?snap.data()?.blocked||false:true,status:approved?(snap.data()?.status||"OFFLINE"):"OFFLINE",driverStatus:approved?(snap.data()?.driverStatus||"OFFLINE"):"OFFLINE",approvedAt:approved?admin.firestore.FieldValue.serverTimestamp():null,approvedBy:approved?adminUid:null,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
  await db.collection("audit").add({action:approved?"DRIVER_APPROVED":"DRIVER_APPROVAL_REVOKED",actorId:adminUid,actorType:"admin",targetId:driverId,targetType:"driver",at:admin.firestore.FieldValue.serverTimestamp()});
  return {success:true,approved};
 });
@@ -25,7 +25,7 @@ export const setDriverBlocked=onCall(async request=>{
 
 export const updatePricingSettings=onCall(async request=>{
  const uid=requireAdmin(request.auth); const d=request.data||{};
- const settings={mode:d.mode==="DYNAMIC"?"DYNAMIC":"NORMAL",baseFee:Math.max(0,Number(d.baseFee||0)),minimumFee:Math.max(0,Number(d.minimumFee||0)),perKmFee:Math.max(0,Number(d.perKmFee||0)),driverBase:Math.max(0,Number(d.driverBase||0)),driverPerKm:Math.max(0,Number(d.driverPerKm||0)),platformPercent:Math.min(100,Math.max(0,Number(d.platformPercent||0))),dynamicMultiplier:Math.max(0.1,Number(d.dynamicMultiplier||1)),updatedAt:admin.firestore.FieldValue.serverTimestamp(),updatedBy:uid};
+ const settings={mode:d.mode==="DYNAMIC"?"DYNAMIC":"NORMAL",baseFee:Math.max(0,Number(d.baseFee||0)),minimumFee:Math.max(0,Number(d.minimumFee||0)),baseKm:Math.max(0,Number(d.baseKm??3)),perKmFee:Math.max(0,Number(d.perKmFee||0)),extraStopFee:Math.max(0,Number(d.extraStopFee||0)),driverBase:Math.max(0,Number(d.driverBase||0)),driverPerKm:Math.max(0,Number(d.driverPerKm||0)),driverExtraStop:Math.max(0,Number(d.driverExtraStop||0)),platformPercent:Math.min(100,Math.max(0,Number(d.platformPercent||0))),dynamicMultiplier:Math.max(0.1,Number(d.dynamicMultiplier||1)),updatedAt:admin.firestore.FieldValue.serverTimestamp(),updatedBy:uid};
  await db.collection("settings").doc("pricing").set(settings,{merge:true});
  await db.collection("audit").add({action:"PRICING_UPDATED",actorId:uid,actorType:"admin",targetId:"pricing",targetType:"settings",details:settings,at:admin.firestore.FieldValue.serverTimestamp()});
  return {success:true,settings};
