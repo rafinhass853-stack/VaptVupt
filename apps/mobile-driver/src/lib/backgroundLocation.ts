@@ -1,9 +1,11 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
 export const BACKGROUND_LOCATION_TASK = "vaptvupt-driver-background-location";
+const DRIVER_ID_KEY = "@vaptvupt/active-driver-id";
 
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -15,7 +17,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (!locations?.length) return;
 
   const latest = locations[locations.length - 1];
-  const driverId = latest?.coords ? await getActiveDriverId() : null;
+  const driverId = await AsyncStorage.getItem(DRIVER_ID_KEY);
   if (!driverId) return;
 
   try {
@@ -23,21 +25,13 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
       lat: latest.coords.latitude,
       lng: latest.coords.longitude,
       lastLocationAt: new Date(),
+      lastLocationUpdate: new Date(),
       locationSource: "BACKGROUND",
     });
   } catch (err) {
     console.warn("Failed to persist background location:", err);
   }
 });
-
-async function getActiveDriverId(): Promise<string | null> {
-  try {
-    const result = await TaskManager.getTaskOptionsAsync(BACKGROUND_LOCATION_TASK);
-    return (result as { driverId?: string } | null)?.driverId || null;
-  } catch {
-    return null;
-  }
-}
 
 export async function startBackgroundLocation(driverId: string) {
   const foreground = await Location.getForegroundPermissionsAsync();
@@ -49,6 +43,8 @@ export async function startBackgroundLocation(driverId: string) {
   if (background.status !== "granted") {
     throw new Error("Permissão de localização em segundo plano não concedida.");
   }
+
+  await AsyncStorage.setItem(DRIVER_ID_KEY, driverId);
 
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   if (running) return;
@@ -67,19 +63,11 @@ export async function startBackgroundLocation(driverId: string) {
     pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
   });
-
-  const taskOptions = await TaskManager.getTaskOptionsAsync(BACKGROUND_LOCATION_TASK);
-  if (taskOptions) {
-    await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-    await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-      ...taskOptions,
-      driverId,
-    } as any);
-  }
 }
 
 export async function stopBackgroundLocation() {
   if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
     await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   }
+  await AsyncStorage.removeItem(DRIVER_ID_KEY);
 }
