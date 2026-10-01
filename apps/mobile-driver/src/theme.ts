@@ -1,43 +1,28 @@
 export const theme = {
   colors: {
-    // Background
-    bg: "#0f172a",
-    bgSecondary: "#1e293b",
-    bgTertiary: "#334155",
-    bgCard: "#1e293b",
-    bgCardHover: "#293548",
-
-    // Text
+    // Identidade VaptVupt: alta visibilidade para quem está na rua.
+    bg: "#111827",
+    bgSecondary: "#1f2937",
+    bgTertiary: "#374151",
+    bgCard: "#1f2937",
+    bgCardHover: "#2b3442",
     text: "#ffffff",
-    textSecondary: "#94a3b8",
-    textMuted: "#64748b",
-
-    // Brand (verde operacional)
-    brand: "#10b981",
-    brandDark: "#059669",
-    brandLight: "#34d399",
-
-    // States
-    success: "#10b981",
-    warning: "#f59e0b",
-    danger: "#ef4444",
-    info: "#3b82f6",
-
-    // Só para dark mode
-    border: "#334155",
-    borderLight: "#475569",
+    textSecondary: "#cbd5e1",
+    textMuted: "#94a3b8",
+    brand: "#ffc400",
+    brandDark: "#e0ad00",
+    brandLight: "#ffe37a",
+    red: "#e30613",
+    redDark: "#b80510",
+    cityBlue: "#0057b8",
+    cityGreen: "#168b45",
+    success: "#168b45",
+    warning: "#ffc400",
+    danger: "#e30613",
+    info: "#0057b8",
+    border: "#374151",
+    borderLight: "#4b5563",
   },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-  },
-  radius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-  },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
+  radius: { sm: 8, md: 12, lg: 16, xl: 24 },
 };
