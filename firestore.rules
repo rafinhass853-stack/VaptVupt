@@ -116,6 +116,14 @@ service cloud.firestore {
     }
 
     // ============================================
+    // MANUAL PIX TOPUP REQUESTS
+    // ============================================
+    match /pixTopupRequests/{requestId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.requestedBy == request.auth.uid);
+      allow write: if false;
+    }
+
+    // ============================================
     // TRANSACTIONS (imutáveis)
     // ============================================
     match /transactions/{transactionId} {
