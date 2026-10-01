@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
-import { MapPin, Bike, Store, Package, Wallet, Settings2, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
+import { Bike, Store, Package, Wallet, CheckCircle2, Clock } from "lucide-react";
 import LiveMap, { type MapMarker } from "../components/LiveMap";
 
 type Tab="overview"|"drivers"|"stores"|"orders"|"finance"|"pricing";
