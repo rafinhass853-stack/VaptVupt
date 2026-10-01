@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -9,7 +10,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
   const locations = (data as any)?.locations || [];
   const location = locations[0];
-  const driverId = (globalThis as any).__VAPT_DRIVER_ID as string | undefined;
+  const driverId = await AsyncStorage.getItem("vapt_driver_id");
   if (!driverId || !location?.coords) return;
   const { latitude, longitude, accuracy } = location.coords;
   await updateDoc(doc(db, "drivers", driverId), {
@@ -22,7 +23,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
 });
 
 export async function startBackgroundLocation(driverId: string) {
-  (globalThis as any).__VAPT_DRIVER_ID = driverId;
+  await AsyncStorage.setItem("vapt_driver_id", driverId);
   const permission = await Location.requestBackgroundPermissionsAsync();
   if (permission.status !== "granted") return;
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -42,5 +43,5 @@ export async function startBackgroundLocation(driverId: string) {
 export async function stopBackgroundLocation() {
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   if (running) await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-  (globalThis as any).__VAPT_DRIVER_ID = undefined;
+  await AsyncStorage.removeItem("vapt_driver_id");
 }
