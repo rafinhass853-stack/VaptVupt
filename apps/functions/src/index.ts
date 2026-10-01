@@ -31,12 +31,11 @@ const db = admin.firestore();
 
 // ============ TIPOS ============
 interface PricingSettings {
-  baseFee: number;
   minimumFee: number;
   baseKm: number;
   perKmFee: number;
   extraStopFee: number;
-  platformPercent: number;
+  driverPercent: number;
 }
 
 interface OrderItem {
@@ -62,16 +61,21 @@ interface Stop {
 async function getPricing(): Promise<PricingSettings> {
   const doc = await db.collection("settings").doc("pricing").get();
   if (!doc.exists) {
-    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20 };
+    return {
+      minimumFee: 10,
+      baseKm: 4,
+      perKmFee: 2,
+      extraStopFee: 3,
+      driverPercent: 70,
+    };
   }
   const data = doc.data() as Partial<PricingSettings>;
   return {
-    baseFee: Number(data.baseFee ?? 8),
-    minimumFee: Number(data.minimumFee ?? data.baseFee ?? 8),
-    baseKm: Number(data.baseKm ?? 3),
-    perKmFee: Number(data.perKmFee ?? 1.5),
-    extraStopFee: Number(data.extraStopFee ?? 2),
-    platformPercent: Math.min(100, Math.max(0, Number(data.platformPercent ?? 20))),
+    minimumFee: Math.max(0, Number(data.minimumFee ?? 10)),
+    baseKm: Math.max(0, Number(data.baseKm ?? 4)),
+    perKmFee: Math.max(0, Number(data.perKmFee ?? 2)),
+    extraStopFee: Math.max(0, Number(data.extraStopFee ?? 3)),
+    driverPercent: Math.min(100, Math.max(0, Number(data.driverPercent ?? 70))),
   };
 }
 
@@ -182,12 +186,11 @@ export const createDeliveryOrder = onCall(async (request) => {
       pricing: {
         totalFee,
         distanceKm: distance,
-        baseFee: pricing.baseFee,
         minimumFee: pricing.minimumFee,
         baseKm: pricing.baseKm,
         perKmFee: pricing.perKmFee,
         extraStopFee: pricing.extraStopFee,
-        platformPercent: pricing.platformPercent,
+        driverPercent: pricing.driverPercent,
         platformFee,
         driverPayout,
       },
@@ -250,11 +253,11 @@ export const quoteDeliveryPrice = onCall(async (request) => {
   const pricing = await getPricing();
   const extraStops = Math.max(0, stopsCount - 1);
   const billableKm = Math.max(0, distanceKm - pricing.baseKm);
-  const calculatedFee =
-    pricing.baseFee +
+  const totalFee = Number((
+    pricing.minimumFee +
     billableKm * pricing.perKmFee +
-    extraStops * pricing.extraStopFee;
-  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+    extraStops * pricing.extraStopFee
+  ).toFixed(2));
   return {
     totalFee,
     distanceKm,
