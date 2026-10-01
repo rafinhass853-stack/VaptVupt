@@ -284,7 +284,12 @@ export default function Drivers() {
         </div>
       </Card>
 
-      <NewDriverModal\n        open={showCreateModal}\n        onClose={() => setShowCreateModal(false)}\n      />\n\n      {/* Modal detalhes */}
+      <NewDriverModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
+
+      {/* Modal detalhes */}
       <Modal
         open={!!selected}
         onClose={() => setSelected(null)}
