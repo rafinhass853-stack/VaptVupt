@@ -13,6 +13,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import ActiveTripScreen from "./src/screens/ActiveTripScreen";
 import EarningsScreen from "./src/screens/EarningsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import PendingApprovalScreen from "./src/screens/PendingApprovalScreen";
 import BottomNav, { Tab } from "./src/components/BottomNav";
 import { registerForPushNotifications } from "./src/lib/notifications";
 import { theme } from "./src/theme";
@@ -54,6 +55,10 @@ function Root() {
         <StatusBar style="light" />
       </>
     );
+  }
+
+  if (driver && driver.approved !== true) {
+    return <PendingApprovalScreen />;
   }
 
   const hasActiveTrip = !!driver?.activeOrderId;
