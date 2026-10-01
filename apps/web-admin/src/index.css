@@ -2,10 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --vv-red: #e30613;
+  --vv-red-dark: #b80510;
+  --vv-yellow: #ffc400;
+  --vv-blue: #0057b8;
+  --vv-green: #168b45;
+  --vv-ink: #111827;
+  --vv-bg: #f7f8fa;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--vv-bg);
+}
+
+body {
+  color: var(--vv-ink);
+}
+
+::selection {
+  background: var(--vv-yellow);
+  color: var(--vv-ink);
 }
 
 .leaflet-container {
@@ -13,3 +33,16 @@ html, body, #root {
   width: 100%;
   z-index: 0;
 }
+
+/* Paleta global para as telas já existentes. */
+.bg-blue-600 { background-color: var(--vv-red) !important; }
+.hover\:bg-blue-700:hover { background-color: var(--vv-red-dark) !important; }
+.bg-emerald-600 { background-color: var(--vv-yellow) !important; color: #111827 !important; }
+.hover\:bg-emerald-700:hover { background-color: #e0ad00 !important; }
+.text-blue-600, .text-blue-500 { color: var(--vv-red) !important; }
+.text-blue-300 { color: #ffd95c !important; }
+.text-emerald-600, .text-emerald-500 { color: var(--vv-red) !important; }
+.text-emerald-400 { color: var(--vv-yellow) !important; }
+.border-blue-600 { border-color: var(--vv-red) !important; }
+.focus\:ring-blue-500:focus { --tw-ring-color: var(--vv-red) !important; }
+.focus\:ring-emerald-500:focus { --tw-ring-color: var(--vv-yellow) !important; }
