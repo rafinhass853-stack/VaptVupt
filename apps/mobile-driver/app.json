@@ -27,6 +27,27 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "O VaptVupt usa sua localização em segundo plano durante entregas ativas para atualizar o mapa e o ETA."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/favicon.png",
+          "color": "#168b45",
+          "sounds": [
+            "default"
+          ]
+        }
+      ]
+    ]
   }
 }
