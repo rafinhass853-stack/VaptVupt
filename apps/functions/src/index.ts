@@ -37,6 +37,10 @@ interface PricingSettings {
   perKmFee: number;
   extraStopFee: number;
   platformPercent: number;
+  driverBase: number;
+  driverPerKm: number;
+  driverExtraStop: number;
+  dynamicMultiplier: number;
 }
 
 interface OrderItem {
@@ -62,7 +66,7 @@ interface Stop {
 async function getPricing(): Promise<PricingSettings> {
   const doc = await db.collection("settings").doc("pricing").get();
   if (!doc.exists) {
-    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20 };
+    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20, driverBase: 6, driverPerKm: 0, driverExtraStop: 0, dynamicMultiplier: 1 };
   }
   const data = doc.data() as Partial<PricingSettings>;
   return {
@@ -72,6 +76,10 @@ async function getPricing(): Promise<PricingSettings> {
     perKmFee: Number(data.perKmFee ?? 1.5),
     extraStopFee: Number(data.extraStopFee ?? 2),
     platformPercent: Math.min(100, Math.max(0, Number(data.platformPercent ?? 20))),
+    driverBase: Math.max(0, Number(data.driverBase ?? 0)),
+    driverPerKm: Math.max(0, Number(data.driverPerKm ?? 0)),
+    driverExtraStop: Math.max(0, Number(data.driverExtraStop ?? 0)),
+    dynamicMultiplier: Math.max(0.1, Number(data.dynamicMultiplier ?? 1)),
   };
 }
 
@@ -117,9 +125,12 @@ export const createDeliveryOrder = onCall(async (request) => {
     pricing.baseFee +
     billableKm * pricing.perKmFee +
     extraStops * pricing.extraStopFee;
-  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
-  const platformFee = totalFee * (pricing.platformPercent / 100);
-  const driverPayout = totalFee - platformFee;
+  const normalFee = Math.max(pricing.minimumFee, calculatedFee);
+  const totalFee = Number((normalFee * pricing.dynamicMultiplier).toFixed(2));
+  const calculatedDriverPayout = pricing.driverBase + billableKm * pricing.driverPerKm + extraStops * pricing.driverExtraStop;
+  const percentageDriverPayout = totalFee * (1 - pricing.platformPercent / 100);
+  const driverPayout = Number(Math.min(totalFee, calculatedDriverPayout > 0 ? calculatedDriverPayout : percentageDriverPayout).toFixed(2));
+  const platformFee = Number((totalFee - driverPayout).toFixed(2));
 
   const totalOrderValue = stops.reduce((sum, stop) => {
     const stopTotal = (stop.items || []).reduce(
