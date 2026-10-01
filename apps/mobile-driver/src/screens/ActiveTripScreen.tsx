@@ -128,7 +128,7 @@ export default function ActiveTripScreen() {
         <View style={styles.feeBanner}>
           <View>
             <Text style={styles.feeLabel}>Ganho desta corrida</Text>
-            <Text style={styles.feeValue}>R$ {order.pricing.totalFee.toFixed(2)}</Text>
+            <Text style={styles.feeValue}>R$ {Number(order.pricing.driverPayout ?? order.pricing.totalFee ?? 0).toFixed(2)}</Text>
           </View>
           {order.totalOrderValue ? (
             <View style={styles.codContainer}>
