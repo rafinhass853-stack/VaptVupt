@@ -1,5 +1,6 @@
 /**
- * Geocoding (Nominatim) + routing (OSRM) for the admin portal.
+ * Geocoding (Nominatim) + routing (OSRM) for the store portal.
+ * Free public endpoints; respect rate limits in production.
  */
 
 export interface GeocodedAddress {
@@ -11,7 +12,7 @@ export interface GeocodedAddress {
 export interface RouteResult {
   distanceKm: number;
   durationMinutes: number;
-  geometry: [number, number][]; // [lng, lat]
+  geometry: [number, number][]; // [lng, lat] (OSRM GeoJSON order)
 }
 
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
