@@ -919,6 +919,78 @@ export const confirmPixCharge = onCall(async (request) => {
   return result;
 });
 
+// ============ MANUAL PIX TOPUPS ============
+const MANUAL_PIX_KEY = "+5516988318626";
+const MANUAL_PIX_RECEIVER = "VaptVupt";
+
+export const getManualPixSettings = onCall(async (request) => {
+  requireAuth(request.auth);
+  return {
+    pixKey: MANUAL_PIX_KEY,
+    receiverName: MANUAL_PIX_RECEIVER,
+    instructions: "Faça o PIX e depois informe os dados do pagamento. O saldo será liberado manualmente após conferência pelo administrador.",
+  };
+});
+
+export const createPixTopupRequest = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const { storeId, amount, paymentReference, payerName } = request.data as { storeId: string; amount: number; paymentReference?: string; payerName?: string; };
+  if (!storeId || !Number.isFinite(amount) || amount <= 0 || amount > 100000) throw new HttpsError("invalid-argument", "Informe um valor entre R$ 0,01 e R$ 100.000,00.");
+  const storeRef = db.collection("stores").doc(storeId);
+  const storeSnap = await storeRef.get();
+  if (!storeSnap.exists) throw new HttpsError("not-found", "Loja não encontrada.");
+  const store = storeSnap.data()!;
+  if (store.uid !== uid) throw new HttpsError("permission-denied", "Loja não pertence a você.");
+  const normalizedAmount = Number(amount.toFixed(2));
+  const requestRef = db.collection("pixTopupRequests").doc();
+  await requestRef.set({ requestId: requestRef.id, storeId, storeName: store.name || "Loja", requestedBy: uid, amount: normalizedAmount, paymentReference: String(paymentReference || "").trim().slice(0,120), payerName: String(payerName || "").trim().slice(0,120), status: "PENDING", pixKey: MANUAL_PIX_KEY, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+  await logAudit({ action:"PIX_TOPUP_REQUESTED", actorId:uid, actorType:"store", targetId:requestRef.id, targetType:"pixTopupRequest", details:{storeId,amount:normalizedAmount} });
+  return { success:true, requestId:requestRef.id, amount:normalizedAmount };
+});
+
+export const approvePixTopupRequest = onCall(async (request) => {
+  const adminUid = requireAuth(request.auth);
+  if (request.auth!.token.role !== "admin") throw new HttpsError("permission-denied", "Apenas administradores.");
+  const { requestId } = request.data as { requestId:string };
+  if (!requestId) throw new HttpsError("invalid-argument", "requestId obrigatório.");
+  const requestRef = db.collection("pixTopupRequests").doc(requestId);
+  const result = await db.runTransaction(async (transaction) => {
+    const requestDoc = await transaction.get(requestRef);
+    if (!requestDoc.exists) throw new HttpsError("not-found", "Solicitação não encontrada.");
+    const topup = requestDoc.data()!;
+    if (topup.status !== "PENDING") throw new HttpsError("failed-precondition", "Esta solicitação já foi processada.");
+    const amount = Number(topup.amount);
+    if (!Number.isFinite(amount) || amount <= 0) throw new HttpsError("failed-precondition", "Valor da recarga inválido.");
+    const storeRef = db.collection("stores").doc(topup.storeId);
+    const storeDoc = await transaction.get(storeRef);
+    if (!storeDoc.exists) throw new HttpsError("not-found", "Loja não encontrada.");
+    const currentBalance = Number(storeDoc.data()?.balance || 0);
+    const newBalance = Number((currentBalance + amount).toFixed(2));
+    const txRef = db.collection("transactions").doc();
+    transaction.update(storeRef,{balance:newBalance});
+    transaction.update(requestRef,{status:"APPROVED",approvedBy:adminUid,approvedAt:admin.firestore.FieldValue.serverTimestamp(),balanceBefore:currentBalance,balanceAfter:newBalance});
+    transaction.set(txRef,{storeId:topup.storeId,type:"CREDIT_PIX_MANUAL",amount,orderId:null,pixTopupRequestId:requestId,description:"Recarga PIX manual — "+requestId.slice(0,8),balanceAfter:newBalance,createdBy:adminUid,createdAt:admin.firestore.FieldValue.serverTimestamp()});
+    return {amount,newBalance,storeId:topup.storeId};
+  });
+  await logAudit({action:"PIX_TOPUP_APPROVED",actorId:adminUid,actorType:"admin",targetId:requestId,targetType:"pixTopupRequest",details:result});
+  return {success:true,...result};
+});
+
+export const rejectPixTopupRequest = onCall(async (request) => {
+  const adminUid = requireAuth(request.auth);
+  if (request.auth!.token.role !== "admin") throw new HttpsError("permission-denied", "Apenas administradores.");
+  const { requestId, reason } = request.data as { requestId:string; reason?:string };
+  if (!requestId) throw new HttpsError("invalid-argument", "requestId obrigatório.");
+  const requestRef=db.collection("pixTopupRequests").doc(requestId);
+  await db.runTransaction(async(transaction)=>{
+    const requestDoc=await transaction.get(requestRef);
+    if(!requestDoc.exists) throw new HttpsError("not-found","Solicitação não encontrada.");
+    if(requestDoc.data()?.status!=="PENDING") throw new HttpsError("failed-precondition","Esta solicitação já foi processada.");
+    transaction.update(requestRef,{status:"REJECTED",rejectedBy:adminUid,rejectedAt:admin.firestore.FieldValue.serverTimestamp(),rejectionReason:String(reason||"Pagamento não localizado ou não confirmado.").trim().slice(0,300)});
+  });
+  await logAudit({action:"PIX_TOPUP_REJECTED",actorId:adminUid,actorType:"admin",targetId:requestId,targetType:"pixTopupRequest",details:{reason:String(reason||"").trim().slice(0,300)}});
+  return {success:true,requestId};
+});
 // ============ 12. CREATE COURIER (ADMIN) ============
 export const createCourier = onCall(async (request) => {
   const uid = requireAuth(request.auth);
