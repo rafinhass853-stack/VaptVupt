@@ -620,6 +620,25 @@ export const matchingDriver = onDocumentUpdated(
       }),
     });
 
+    try {
+      const driverSnap = await db.collection("drivers").doc(best.driverId).get();
+      const pushToken = driverSnap.data()?.pushToken as string | undefined;
+      if (pushToken) {
+        await admin.messaging().send({
+          token: pushToken,
+          notification: {
+            title: "Nova entrega disponível",
+            body: `Você tem uma nova oferta de R$ ${Number(after.pricing?.driverPayout || 0).toFixed(2)}.`,
+          },
+          data: { type: "DELIVERY_OFFER", orderId },
+          android: { priority: "high", notification: { sound: "default" } },
+          apns: { payload: { aps: { sound: "default", badge: 1 } } },
+        });
+      }
+    } catch (notificationError) {
+      console.warn("[PUSH] Falha ao notificar motoboy:", notificationError);
+    }
+
     console.log(
       `[MATCHING] Pedido ${orderId} → ${best.driverId} (${best.distanceKm.toFixed(2)}km)`
     );
