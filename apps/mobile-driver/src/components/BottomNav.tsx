@@ -10,25 +10,37 @@ interface BottomNavProps {
   hasActiveTrip?: boolean;
 }
 
+const tabs: { key: Tab; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { key: "home", icon: "map", label: "Início" },
+  { key: "trip", icon: "bicycle", label: "Corridas" },
+  { key: "earnings", icon: "wallet", label: "Ganhos" },
+  { key: "profile", icon: "person-circle", label: "Perfil" },
+];
+
 export default function BottomNav({ active, onChange, hasActiveTrip }: BottomNavProps) {
-  const tabs = [
-    { key: "home", icon: "home", label: "Início" },
-    { key: "trip", icon: "bicycle", label: "Corrida", badge: hasActiveTrip },
-    { key: "earnings", icon: "cash", label: "Ganhos" },
-    { key: "profile", icon: "person", label: "Perfil" },
-  ];
   return (
     <View style={styles.container}>
-      {tabs.map((t) => {
-        const isActive = active === t.key;
+      {tabs.map((tab) => {
+        const selected = active === tab.key;
         return (
-          <TouchableOpacity key={t.key} style={styles.tab} onPress={() => onChange(t.key as Tab)}>
-            <View style={styles.iconWrapper}>
-              <Ionicons name={isActive ? (t.icon as any) : (`${t.icon}-outline` as any)}
-                size={24} color={isActive ? theme.colors.brand : theme.colors.textMuted} />
-              {t.badge && <View style={styles.badge} />}
+          <TouchableOpacity
+            key={tab.key}
+            style={styles.tab}
+            onPress={() => onChange(tab.key)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={tab.label}
+          >
+            <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
+              <Ionicons
+                name={selected ? tab.icon : (tab.key === "home" ? "map-outline" : tab.key === "trip" ? "bicycle-outline" : tab.key === "earnings" ? "wallet-outline" : "person-circle-outline")}
+                size={21}
+                color={selected ? theme.colors.brand : theme.colors.textMuted}
+              />
+              {tab.key === "trip" && hasActiveTrip ? <View style={styles.badge} /> : null}
             </View>
-            <Text style={[styles.label, isActive && styles.labelActive]}>{t.label}</Text>
+            <Text style={[styles.label, selected && styles.labelSelected]}>{tab.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -37,10 +49,19 @@ export default function BottomNav({ active, onChange, hasActiveTrip }: BottomNav
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: "row", backgroundColor: theme.colors.bgCard, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingBottom: 20, paddingTop: 10 },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 6 },
-  iconWrapper: { position: "relative" },
-  badge: { position: "absolute", top: -2, right: -4, width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.danger, borderWidth: 2, borderColor: theme.colors.bgCard },
-  label: { color: theme.colors.textMuted, fontSize: 10, marginTop: 4, fontWeight: "600" },
-  labelActive: { color: theme.colors.brand },
+  container: {
+    flexDirection: "row",
+    backgroundColor: theme.colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: 9,
+    paddingBottom: 12,
+    paddingHorizontal: 6,
+  },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 4, gap: 4 },
+  iconWrap: { width: 44, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", position: "relative" },
+  iconWrapSelected: { backgroundColor: "rgba(16,185,129,0.12)" },
+  badge: { position: "absolute", top: 2, right: 7, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning, borderWidth: 1, borderColor: theme.colors.bgCard },
+  label: { color: theme.colors.textMuted, fontSize: 10, fontWeight: "600" },
+  labelSelected: { color: theme.colors.brandLight, fontWeight: "800" },
 });
