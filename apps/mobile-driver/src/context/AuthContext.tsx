@@ -22,6 +22,7 @@ export interface DriverData {
   lng?: number;
   approved?: boolean;
   approvalStatus?: string;
+  totalDeliveries?: number;
 }
 
 interface SignupData {
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 lng: data.lng,
                 approved: data.approved === true,
                 approvalStatus: data.approvalStatus || (data.approved === true ? "APPROVED" : "PENDING"),
+                totalDeliveries: Number(data.totalDeliveries || 0),
               });
             }
           }
