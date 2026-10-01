@@ -5,7 +5,7 @@ import { Activity, LayoutDashboard, Map, Package, Bike, Store, Wallet, Bell, Lif
 import { useState } from "react";
 
 const groups = [
-  { title:"OPERAÇÃO", items:[{to:"/",icon:LayoutDashboard,label:"Dashboard",end:true},{to:"/operations",icon:Map,label:"Mapa operacional"},{to:"/orders",icon:Package,label:"Pedidos"},{to:"/couriers",icon:Bike,label:"Entregadores"},{to:"/stores",icon:Store,label:"Lojas"}]},
+  { title:"OPERAÇÃO", items:[{to:"/administration",icon:Shield,label:"Administração"},{to:"/",icon:LayoutDashboard,label:"Dashboard",end:true},{to:"/operations",icon:Map,label:"Mapa operacional"},{to:"/orders",icon:Package,label:"Pedidos"},{to:"/couriers",icon:Bike,label:"Entregadores"},{to:"/stores",icon:Store,label:"Lojas"}]},
   { title:"GESTÃO", items:[{to:"/finance",icon:Wallet,label:"Financeiro"},{to:"/analytics",icon:Activity,label:"BI operacional"},{to:"/notifications",icon:Bell,label:"Notificações"},{to:"/support",icon:LifeBuoy,label:"Suporte"},{to:"/audit",icon:FileText,label:"Auditoria"}]},
   { title:"CONFIGURAÇÃO", items:[{to:"/settings",icon:Settings,label:"Configurações"}]}
 ];
