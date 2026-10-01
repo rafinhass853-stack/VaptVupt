@@ -11,7 +11,7 @@ const money=(v:number)=>`R$ ${Number(v||0).toFixed(2).replace(".",",")}`;
 export default function Finance(){
  const {toast}=useToast();const[stores,setStores]=useState<StoreDoc[]>([]),[transactions,setTransactions]=useState<Transaction[]>([]),[requests,setRequests]=useState<PixRequest[]>([]);
  const[selectedStore,setSelectedStore]=useState<StoreDoc|null>(null),[searchStore,setSearchStore]=useState(""),[amount,setAmount]=useState(0),[description,setDescription]=useState(""),[operation,setOperation]=useState<"credit"|"debit">("credit"),[processing,setProcessing]=useState(false),[processingPix,setProcessingPix]=useState<string|null>(null);
- useEffect(()=>onSnapshot(collection(db,"stores"),s=>setStores(s.docs.map(d=>({id:d.id,name:d.data().name||"Sem nome",balance:Number(d.data().balance||0)}))),[]);
+ useEffect(()=>{const unsub=onSnapshot(collection(db,"stores"),s=>setStores(s.docs.map(d=>({id:d.id,name:d.data().name||"Sem nome",balance:Number(d.data().balance||0)}))));return ()=>unsub();},[]);
  useEffect(()=>{const q=query(collection(db,"transactions"),orderBy("createdAt","desc"),limit(30));return onSnapshot(q,s=>setTransactions(s.docs.map(d=>({id:d.id,...d.data()} as Transaction))));},[]);
  useEffect(()=>{const q=query(collection(db,"pixTopupRequests"),orderBy("createdAt","desc"),limit(50));return onSnapshot(q,s=>setRequests(s.docs.map(d=>({id:d.id,...d.data()} as PixRequest))));},[]);
  const filtered=stores.filter(s=>s.name.toLowerCase().includes(searchStore.toLowerCase())),pending=requests.filter(r=>r.status==="PENDING"),totalBalance=stores.reduce((s,x)=>s+x.balance,0);
