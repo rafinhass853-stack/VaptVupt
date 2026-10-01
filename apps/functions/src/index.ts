@@ -991,6 +991,29 @@ export const rejectPixTopupRequest = onCall(async (request) => {
   await logAudit({action:"PIX_TOPUP_REJECTED",actorId:adminUid,actorType:"admin",targetId:requestId,targetType:"pixTopupRequest",details:{reason:String(reason||"").trim().slice(0,300)}});
   return {success:true,requestId};
 });
+export const adminAdjustStoreBalance = onCall(async (request) => {
+  const adminUid = requireAuth(request.auth);
+  if (request.auth!.token.role !== "admin") throw new HttpsError("permission-denied", "Apenas administradores.");
+  const { storeId, amount, description } = request.data as { storeId:string; amount:number; description?:string };
+  if (!storeId || !Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 100000) {
+    throw new HttpsError("invalid-argument", "Valor inválido.");
+  }
+  const storeRef=db.collection("stores").doc(storeId);
+  const result=await db.runTransaction(async(transaction)=>{
+    const storeDoc=await transaction.get(storeRef);
+    if(!storeDoc.exists) throw new HttpsError("not-found","Loja não encontrada.");
+    const before=Number(storeDoc.data()?.balance||0);
+    const after=Number((before+amount).toFixed(2));
+    if(after<0) throw new HttpsError("failed-precondition","O saldo não pode ficar negativo.");
+    const txRef=db.collection("transactions").doc();
+    transaction.update(storeRef,{balance:after});
+    transaction.set(txRef,{storeId,type:amount>0?"CREDIT_MANUAL":"DEBIT_MANUAL",amount,orderId:null,description:String(description||"Ajuste manual").trim().slice(0,300),balanceAfter:after,createdBy:adminUid,createdAt:admin.firestore.FieldValue.serverTimestamp()});
+    return {before,after};
+  });
+  await logAudit({action:"STORE_BALANCE_ADJUSTED",actorId:adminUid,actorType:"admin",targetId:storeId,targetType:"store",details:{amount,description:String(description||"").slice(0,300),...result}});
+  return {success:true,...result};
+});
+
 // ============ 12. CREATE COURIER (ADMIN) ============
 export const createCourier = onCall(async (request) => {
   const uid = requireAuth(request.auth);
