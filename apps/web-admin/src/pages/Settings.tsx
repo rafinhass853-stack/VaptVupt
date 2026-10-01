@@ -4,18 +4,25 @@ import { db } from "../lib/firebase";
 import { Save, DollarSign, MapPin, Plus, Settings as SettingsIcon } from "lucide-react";
 import { Button, Card, Input, useToast } from "@vaptvupt/shared-ui";
 
-interface PricingSettings { baseFee:number; minimumFee:number; baseKm:number; perKmFee:number; extraStopFee:number; platformPercent:number; }
+interface PricingSettings {
+  minimumFee: number;
+  baseKm: number;
+  perKmFee: number;
+  extraStopFee: number;
+  driverPercent: number;
+  platformPercent: number;
+}
 interface MatchingSettings { radii:number[]; maxCandidates:number; maxAgeMinutes:number; }
 
 export default function Settings() {
   const { toast } = useToast();
   const [pricing, setPricing] = useState<PricingSettings>({
-    baseFee: 8.0,
-    minimumFee: 8.0,
-    baseKm: 3.0,
-    perKmFee: 1.5,
-    extraStopFee: 2.0,
-    platformPercent: 20,
+    minimumFee: 10,
+    baseKm: 4,
+    perKmFee: 2,
+    extraStopFee: 3,
+    driverPercent: 70,
+    platformPercent: 30,
   });
   const [matching, setMatching] = useState<MatchingSettings>({radii:[3,5,10,20,50],maxCandidates:20,maxAgeMinutes:5});
   const [loading, setLoading] = useState(true);
@@ -30,8 +37,12 @@ export default function Settings() {
         setPricing((current) => ({
           ...current,
           ...data,
-          minimumFee: Number(data.minimumFee ?? data.baseFee ?? current.minimumFee),
-          platformPercent: Number(data.platformPercent ?? current.platformPercent),
+          minimumFee: Number(data.minimumFee ?? current.minimumFee),
+          baseKm: Number(data.baseKm ?? current.baseKm),
+          perKmFee: Number(data.perKmFee ?? current.perKmFee),
+          extraStopFee: Number(data.extraStopFee ?? current.extraStopFee),
+          driverPercent: Number(data.driverPercent ?? (100 - Number(data.platformPercent ?? current.platformPercent))),
+          platformPercent: Number(data.platformPercent ?? (100 - Number(data.driverPercent ?? current.driverPercent))),
         }));
       }
       const matchingSnap = await getDoc(doc(db, "settings", "matching"));
@@ -44,6 +55,15 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const totalPercent = pricing.driverPercent + pricing.platformPercent;
+      if (Math.abs(totalPercent - 100) > 0.001) {
+        toast("Repasse ao motoboy + comissão VaptVupt deve somar 100%.", "error");
+        return;
+      }
+      if (pricing.minimumFee < 0 || pricing.baseKm < 0 || pricing.perKmFee < 0 || pricing.extraStopFee < 0) {
+        toast("Os valores de tarifa não podem ser negativos.", "error");
+        return;
+      }
       await setDoc(doc(db, "settings", "pricing"), pricing);
       await setDoc(doc(db, "settings", "matching"), matching);
       toast("Configurações salvas com sucesso!", "success");
@@ -58,12 +78,13 @@ export default function Settings() {
     return <div className="p-8 text-slate-500">Carregando...</div>;
   }
 
-  const exampleTotal = Math.max(
-    pricing.minimumFee,
-    pricing.baseFee +
-      Math.max(0, 5 - pricing.baseKm) * pricing.perKmFee +
-      (2 - 1) * pricing.extraStopFee
-  );
+  const exampleTotal = Number((
+    pricing.minimumFee +
+    Math.max(0, 5 - pricing.baseKm) * pricing.perKmFee +
+    pricing.extraStopFee
+  ).toFixed(2));
+  const exampleDriver = Number((exampleTotal * pricing.driverPercent / 100).toFixed(2));
+  const examplePlatform = Number((exampleTotal * pricing.platformPercent / 100).toFixed(2));
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
@@ -84,82 +105,82 @@ export default function Settings() {
 
         <div className="space-y-5">
           <Input
-            label="Valor fixo inicial (R$)"
+            label="Taxa mínima (R$)"
             type="number"
-            step="0.01"
-            value={pricing.baseFee}
-            onChange={(e) =>
-              setPricing({ ...pricing, baseFee: parseFloat(e.target.value) || 0 })
-            }
-            hint="Valor inicial usado no cálculo do serviço"
-          />
-
-          <Input
-            label="Tarifa mínima (R$)"
-            type="number"
+            min="0"
             step="0.01"
             value={pricing.minimumFee}
             onChange={(e) =>
-              setPricing({ ...pricing, minimumFee: parseFloat(e.target.value) || 0 })
+              setPricing({ ...pricing, minimumFee: Math.max(0, parseFloat(e.target.value) || 0) })
             }
-            hint="Mesmo em uma corrida curta, o estabelecimento nunca paga menos que este valor"
+            hint="Valor mínimo cobrado por uma entrega."
           />
 
           <Input
-            label="Franquia de KM"
+            label="KM incluídos"
             type="number"
+            min="0"
             step="0.1"
             value={pricing.baseKm}
             onChange={(e) =>
-              setPricing({ ...pricing, baseKm: parseFloat(e.target.value) || 0 })
+              setPricing({ ...pricing, baseKm: Math.max(0, parseFloat(e.target.value) || 0) })
             }
-            hint="Quantos KM já estão inclusos na tarifa mínima"
+            hint="Quilometragem já incluída na taxa mínima."
             icon={<MapPin size={16} />}
           />
 
           <Input
-            label="Valor por KM Adicional (R$)"
+            label="Adicional por KM (R$)"
             type="number"
+            min="0"
             step="0.01"
             value={pricing.perKmFee}
             onChange={(e) =>
-              setPricing({ ...pricing, perKmFee: parseFloat(e.target.value) || 0 })
+              setPricing({ ...pricing, perKmFee: Math.max(0, parseFloat(e.target.value) || 0) })
             }
-            hint="Cobrado para cada KM além da franquia"
+            hint="Valor cobrado por cada KM acima dos KM incluídos."
           />
 
           <Input
-            label="Percentual da VaptVupt (%)"
+            label="Parada adicional (R$)"
+            type="number"
+            min="0"
+            step="0.01"
+            value={pricing.extraStopFee}
+            onChange={(e) =>
+              setPricing({ ...pricing, extraStopFee: Math.max(0, parseFloat(e.target.value) || 0) })
+            }
+            hint="Valor acrescentado para cada parada além da primeira."
+            icon={<Plus size={16} />}
+          />
+
+          <Input
+            label="Repasse ao motoboy (%)"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            value={pricing.driverPercent}
+            onChange={(e) => {
+              const driverPercent = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+              setPricing({ ...pricing, driverPercent, platformPercent: Number((100 - driverPercent).toFixed(1)) });
+            }}
+            hint="Percentual da tarifa destinado ao motoboy que aceitar e concluir a entrega."
+          />
+
+          <Input
+            label="Comissão VaptVupt (%)"
             type="number"
             min="0"
             max="100"
             step="0.1"
             value={pricing.platformPercent}
-            onChange={(e) =>
-              setPricing({
-                ...pricing,
-                platformPercent: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
-              })
-            }
-            hint="Percentual retido pela plataforma. O restante fica reservado ao motoboy que concluir a entrega."
+            onChange={(e) => {
+              const platformPercent = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+              setPricing({ ...pricing, platformPercent, driverPercent: Number((100 - platformPercent).toFixed(1)) });
+            }}
+            hint="Percentual destinado à plataforma. Os dois percentuais sempre somam 100%."
           />
-
-          <Input
-            label="Taxa por Parada Extra (R$)"
-            type="number"
-            step="0.01"
-            value={pricing.extraStopFee}
-            onChange={(e) =>
-              setPricing({
-                ...pricing,
-                extraStopFee: parseFloat(e.target.value) || 0,
-              })
-            }
-            hint="Cobrado para cada parada além da primeira"
-            icon={<Plus size={16} />}
-          />
-        </div>
-
         {/* Exemplo */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
@@ -173,7 +194,7 @@ export default function Settings() {
             R$ {exampleTotal.toFixed(2)}
           </p>
           <p className="text-xs text-blue-700 mt-2">
-            A divisão interna entre plataforma e motoboy não é exibida ao estabelecimento.
+            Motoboy: <strong>R$ {exampleDriver.toFixed(2)}</strong> · VaptVupt: <strong>R$ {examplePlatform.toFixed(2)}</strong>.
           </p>
         </div>
 
