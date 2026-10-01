@@ -617,6 +617,12 @@ export const matchingDriver = onDocumentUpdated(
     console.log(
       `[MATCHING] Pedido ${orderId} → ${best.driverId} (${best.distanceKm.toFixed(2)}km)`
     );
+
+    try {
+      const driverSnap = await db.collection("drivers").doc(best.driverId).get();
+      const token = driverSnap.data()?.fcmToken;
+      if (token) await admin.messaging().send({ token, notification: { title: "Nova corrida disponível", body: `Você recebe R$ ${Number(after.pricing?.driverPayout || 0).toFixed(2)} • ${best.distanceKm.toFixed(1)} km até a coleta` }, data: { orderId, type: "DELIVERY_OFFER" } });
+    } catch (err) { console.warn(`[PUSH] Falha ao notificar ${best.driverId}:`, err); }
   }
 );
 
