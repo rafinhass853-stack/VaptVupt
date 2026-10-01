@@ -16,7 +16,7 @@ interface Order {
   status: string;
   storeName: string;
   storePhone?: string;
-  pricing: { totalFee: number; distanceKm: number };
+  pricing: { totalFee: number; distanceKm: number; driverPayout?: number };
   stops: any[];
   totalOrderValue?: number;
 }
