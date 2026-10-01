@@ -57,7 +57,7 @@ service cloud.firestore {
             && resource.data.activeStoreId == request.auth.token.storeId);
 
       // Criação: o próprio driver (auto-cadastro) ou admin
-      allow create: if isOwnDriver(driverId) || isAdmin();
+      allow create: if isAdmin() || (isOwnDriver(driverId) && request.resource.data.approved == false && request.resource.data.approvalStatus == 'PENDING');
 
       // Update: 
       //   - o próprio driver pode alterar seus dados pessoais e status operacional
