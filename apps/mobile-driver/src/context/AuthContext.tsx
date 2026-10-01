@@ -20,6 +20,8 @@ export interface DriverData {
   plate?: string;
   lat?: number;
   lng?: number;
+  approved?: boolean;
+  approvalStatus?: string;
 }
 
 interface SignupData {
@@ -66,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 plate: data.plate,
                 lat: data.lat,
                 lng: data.lng,
+                approved: data.approved === true,
+                approvalStatus: data.approvalStatus || (data.approved === true ? "APPROVED" : "PENDING"),
               });
             }
           }
@@ -101,7 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeOrderId: null,
       fcmToken: "",
       currentGeohash: "",
-      approved: true, // Por padrão aprovado; no Admin pode bloquear
+      approved: false,
+      approvalStatus: "PENDING",
+      driverStatus: "OFFLINE",
       createdAt: new Date(),
     });
   };
