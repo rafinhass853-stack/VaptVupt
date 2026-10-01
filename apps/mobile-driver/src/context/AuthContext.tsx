@@ -20,6 +20,8 @@ export interface DriverData {
   plate?: string;
   lat?: number;
   lng?: number;
+  approved?: boolean;
+  blocked?: boolean;
 }
 
 interface SignupData {
@@ -66,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 plate: data.plate,
                 lat: data.lat,
                 lng: data.lng,
+                approved: data.approved !== false,
+                blocked: data.blocked === true,
               });
             }
           }
@@ -81,7 +85,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const driverSnap = await new Promise<import("firebase/firestore").DocumentSnapshot>((resolve, reject) => {
+      const unsub = onSnapshot(
+        doc(db, "drivers", cred.user.uid),
+        (snap) => { unsub(); resolve(snap); },
+        (error) => { unsub(); reject(error); }
+      );
+    });
+
+    if (!driverSnap.exists()) {
+      await signOut(auth);
+      throw new Error("Cadastro de motoboy não encontrado.");
+    }
+
+    const data = driverSnap.data();
+    if (data?.blocked === true) {
+      await signOut(auth);
+      throw new Error("Seu cadastro está bloqueado. Procure o administrador.");
+    }
+    if (data?.approved === false) {
+      await signOut(auth);
+      throw new Error("Seu cadastro ainda não foi aprovado pelo administrador.");
+    }
   };
 
   const signup = async (
@@ -101,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeOrderId: null,
       fcmToken: "",
       currentGeohash: "",
-      approved: true, // Por padrão aprovado; no Admin pode bloquear
+      approved: false, // O administrador precisa aprovar o cadastro
       createdAt: new Date(),
     });
   };
