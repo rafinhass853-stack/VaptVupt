@@ -36,6 +36,7 @@ interface PricingSettings {
   perKmFee: number;
   extraStopFee: number;
   driverPercent: number;
+  platformPercent: number;
 }
 
 interface OrderItem {
@@ -67,6 +68,7 @@ async function getPricing(): Promise<PricingSettings> {
       perKmFee: 2,
       extraStopFee: 3,
       driverPercent: 70,
+      platformPercent: 30,
     };
   }
   const data = doc.data() as Partial<PricingSettings>;
@@ -76,6 +78,7 @@ async function getPricing(): Promise<PricingSettings> {
     perKmFee: Math.max(0, Number(data.perKmFee ?? 2)),
     extraStopFee: Math.max(0, Number(data.extraStopFee ?? 3)),
     driverPercent: Math.min(100, Math.max(0, Number(data.driverPercent ?? 70))),
+    platformPercent: Math.min(100, Math.max(0, Number(data.platformPercent ?? 30))),
   };
 }
 
@@ -117,13 +120,13 @@ export const createDeliveryOrder = onCall(async (request) => {
   const pricing = await getPricing();
   const extraStops = stops.length - 1;
   const billableKm = Math.max(0, distance - pricing.baseKm);
-  const calculatedFee =
-    pricing.baseFee +
+  const totalFee = Number((
+    pricing.minimumFee +
     billableKm * pricing.perKmFee +
-    extraStops * pricing.extraStopFee;
-  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
-  const platformFee = totalFee * (pricing.platformPercent / 100);
-  const driverPayout = totalFee - platformFee;
+    extraStops * pricing.extraStopFee
+  ).toFixed(2));
+  const driverPayout = Number((totalFee * pricing.driverPercent / 100).toFixed(2));
+  const platformFee = Number((totalFee * pricing.platformPercent / 100).toFixed(2));
 
   const totalOrderValue = stops.reduce((sum, stop) => {
     const stopTotal = (stop.items || []).reduce(
@@ -191,6 +194,7 @@ export const createDeliveryOrder = onCall(async (request) => {
         perKmFee: pricing.perKmFee,
         extraStopFee: pricing.extraStopFee,
         driverPercent: pricing.driverPercent,
+        platformPercent: pricing.platformPercent,
         platformFee,
         driverPayout,
       },
