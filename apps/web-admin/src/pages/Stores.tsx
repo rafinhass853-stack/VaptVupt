@@ -80,6 +80,8 @@ interface StoreDoc {
     number: string;
     neighborhood?: string;
     city?: string;
+    state?: string;
+    zipCode?: string;
     lat?: number;
     lng?: number;
   };
@@ -281,6 +283,8 @@ function NewStoreModal({
     number: "",
     neighborhood: "",
     city: "",
+    state: "",
+    zipCode: "",
   });
 
   const [addressQuery, setAddressQuery] = useState("");
@@ -353,7 +357,7 @@ function NewStoreModal({
         setForm((f) => ({ ...f, street: firstPart }));
       }
     }
-    if (parts.length >= 3) {
+    if (s.street || s.number || s.neighborhood || s.city || s.state || s.zipCode) {\n      setForm((f) => ({ ...f, street: s.street || f.street, number: s.number || f.number, neighborhood: s.neighborhood || f.neighborhood, city: s.city || f.city, state: s.state || f.state, zipCode: s.zipCode || f.zipCode }));\n    }\n    if (parts.length >= 3) {
       // tentativa simples de pegar cidade no fim
       const lastPart = parts[parts.length - 3]?.trim() || "";
       if (lastPart.length < 40) {
@@ -422,6 +426,9 @@ function NewStoreModal({
           number: form.number,
           neighborhood: form.neighborhood,
           city: form.city,
+          state: form.state,
+          zipCode: form.zipCode,
+          fullAddress: selectedAddress?.displayName || "",
           lat: selectedAddress?.lat || 0,
           lng: selectedAddress?.lng || 0,
           fullAddress: selectedAddress?.displayName || "",
