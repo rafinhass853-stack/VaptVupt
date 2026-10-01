@@ -3,7 +3,7 @@ import { collection, onSnapshot, query, where, orderBy } from "firebase/firestor
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { useStore } from "../context/StoreContext";
-import { Wallet as WalletIcon, Plus, ArrowDownCircle, ArrowUpCircle, Copy, CheckCircle2, TrendingUp, TrendingDown, Clock3, Send } from "lucide-react";
+import { Wallet as WalletIcon, Plus, ArrowDownCircle, ArrowUpCircle, Copy, CheckCircle2, Clock3, Send } from "lucide-react";
 import { Button, Card, Modal, EmptyState, useToast } from "@vaptvupt/shared-ui";
 interface Transaction { id:string; type:string; amount:number; description:string; createdAt:any; }
 interface PixRequest { id:string; amount:number; status:string; createdAt:any; paymentReference?:string; rejectionReason?:string; }
