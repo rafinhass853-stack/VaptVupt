@@ -1,23 +1,28 @@
 export const colors = {
-  // Marca
+  // Identidade VaptVupt: vermelho + amarelo de alta visibilidade,
+  // com azul, verde e dourado inspirados nos símbolos de São Carlos.
   brand: {
-    50: "#ecfdf5",
-    100: "#d1fae5",
-    500: "#10b981",
-    600: "#059669",
-    700: "#047857",
-    900: "#064e3b",
+    50: "#fff7d6",
+    100: "#ffed9e",
+    500: "#ffc400",
+    600: "#e30613",
+    700: "#c80511",
+    900: "#6f0810",
   },
-  // Admin
+  city: {
+    blue: "#0057b8",
+    green: "#168b45",
+    gold: "#ffc400",
+    white: "#ffffff",
+  },
   admin: {
-    50: "#eff6ff",
-    100: "#dbeafe",
-    500: "#3b82f6",
-    600: "#2563eb",
-    700: "#1d4ed8",
-    900: "#1e3a8a",
+    50: "#eef6ff",
+    100: "#d9eaff",
+    500: "#0057b8",
+    600: "#00489a",
+    700: "#003a7d",
+    900: "#07244a",
   },
-  // Neutros
   slate: {
     50: "#f8fafc",
     100: "#f1f5f9",
@@ -28,13 +33,12 @@ export const colors = {
     600: "#475569",
     700: "#334155",
     800: "#1e293b",
-    900: "#0f172a",
+    900: "#111827",
   },
-  // Semânticos
-  success: "#10b981",
-  warning: "#f59e0b",
-  danger: "#ef4444",
-  info: "#3b82f6",
+  success: "#168b45",
+  warning: "#ffc400",
+  danger: "#e30613",
+  info: "#0057b8",
 };
 
 export const spacing = {
