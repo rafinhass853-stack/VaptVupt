@@ -174,7 +174,7 @@ export const createDeliveryOrder = onCall(async (request) => {
     transaction.set(transactionRef, {
       storeId,
       type: "DEBIT_DELIVERY",
-      amount: totalFee,
+      amount: -totalFee,
       orderId: null,
       description: `Frete para ${stops.length} parada(s)`,
       balanceAfter: newBalance,
