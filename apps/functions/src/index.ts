@@ -269,6 +269,20 @@ export const quoteDeliveryPrice = onCall(async (request) => {
   };
 });
 
+export const setDriverOnlineState = onCall(async (request) => {
+  const uid = requireAuth(request.auth);
+  const online = Boolean(request.data?.online);
+  const ref = db.collection("drivers").doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Cadastro não encontrado.");
+  const driver = snap.data()!;
+  if (driver.approved !== true) throw new HttpsError("permission-denied", "Cadastro ainda não aprovado.");
+  if (!online && driver.activeOrderId) throw new HttpsError("failed-precondition", "Finalize a entrega atual antes de ficar offline.");
+  const status = online ? "ONLINE" : "OFFLINE";
+  await ref.update({ status, driverStatus: status, lastHeartbeat: admin.firestore.FieldValue.serverTimestamp() });
+  return { success: true, status };
+});
+
 // ============ 2. ACCEPT ORDER ============
 export const acceptOrder = onCall(async (request) => {
   const uid = requireAuth(request.auth);
