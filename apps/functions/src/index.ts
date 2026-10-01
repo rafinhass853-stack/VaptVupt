@@ -1033,6 +1033,7 @@ export const createCourier = onCall(async (request) => {
   // Salva no Firestore
   await db.collection("drivers").doc(userRecord.uid).set({
     uid: userRecord.uid,
+    name: fullName,
     fullName,
     email,
     cpf: cpf.replace(
@@ -1045,8 +1046,10 @@ export const createCourier = onCall(async (request) => {
     licenseCategory,
     licenseNumber,
     vehicle,
-    status: "active",
+    status: "OFFLINE",
     driverStatus: "OFFLINE",
+    plate: vehicle.plate,
+    vehicleType: vehicle.type,
     activeOrderId: null,
     activeStoreId: null,
     fcmToken: "",
