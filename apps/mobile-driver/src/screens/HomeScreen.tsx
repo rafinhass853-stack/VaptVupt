@@ -94,7 +94,7 @@ export default function HomeScreen() {
           Alert.alert("Localização necessária", locErr.message || "Autorize a localização em primeiro e segundo plano para ficar online.");
           return;
         }
-        const setAvailability = httpsCallable(functions, "setDriverAvailability");
+        const setAvailability = httpsCallable(functions, "setDriverOnlineState");
         await setAvailability({ online: true });
         setIsOnline(true);
       } else {
@@ -105,7 +105,7 @@ export default function HomeScreen() {
           );
           return;
         }
-        const setAvailability = httpsCallable(functions, "setDriverAvailability");
+        const setAvailability = httpsCallable(functions, "setDriverOnlineState");
         await setAvailability({ online: false });
         await stopLocationTracking();
         setIsOnline(false);
