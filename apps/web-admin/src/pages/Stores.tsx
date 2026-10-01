@@ -367,7 +367,8 @@ function NewStoreModal({
         state: s.state || f.state,
         zipCode: s.zipCode || f.zipCode,
       }));
-    }\n    if (parts.length >= 3) {
+    }
+    if (parts.length >= 3) {
       // tentativa simples de pegar cidade no fim
       const lastPart = parts[parts.length - 3]?.trim() || "";
       if (lastPart.length < 40) {
@@ -409,6 +410,8 @@ function NewStoreModal({
       number: "",
       neighborhood: "",
       city: "",
+      state: "",
+      zipCode: "",
     });
     setAddressQuery("");
     setSelectedAddress(null);
