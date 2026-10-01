@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "VaptVupt Driver",
+    "name": "VaptVupt Motoboy",
     "slug": "vaptvupt-driver",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "scheme": "vaptvupt",
     "plugins": ["expo-location", "expo-notifications"],
     "splash": {
-      "backgroundColor": "#1e293b"
+      "backgroundColor": "#111827",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,16 +20,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1e293b"
+        "backgroundColor": "#e30613"
       },
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
-      ]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "web": { "favicon": "./assets/favicon.png" }
   }
 }
