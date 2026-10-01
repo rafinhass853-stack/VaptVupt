@@ -31,6 +31,7 @@ const db = admin.firestore();
 
 // ============ TIPOS ============
 interface PricingSettings {
+  mode?: "NORMAL" | "DYNAMIC";
   baseFee: number;
   minimumFee: number;
   baseKm: number;
@@ -66,10 +67,11 @@ interface Stop {
 async function getPricing(): Promise<PricingSettings> {
   const doc = await db.collection("settings").doc("pricing").get();
   if (!doc.exists) {
-    return { baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20, driverBase: 6, driverPerKm: 0, driverExtraStop: 0, dynamicMultiplier: 1 };
+    return { mode: "NORMAL", baseFee: 8.0, minimumFee: 8.0, baseKm: 3.0, perKmFee: 1.5, extraStopFee: 2.0, platformPercent: 20, driverBase: 6, driverPerKm: 0, driverExtraStop: 0, dynamicMultiplier: 1 };
   }
   const data = doc.data() as Partial<PricingSettings>;
   return {
+    mode: data.mode === "DYNAMIC" ? "DYNAMIC" : "NORMAL",
     baseFee: Number(data.baseFee ?? 8),
     minimumFee: Number(data.minimumFee ?? data.baseFee ?? 8),
     baseKm: Number(data.baseKm ?? 3),
@@ -126,7 +128,7 @@ export const createDeliveryOrder = onCall(async (request) => {
     billableKm * pricing.perKmFee +
     extraStops * pricing.extraStopFee;
   const normalFee = Math.max(pricing.minimumFee, calculatedFee);
-  const totalFee = Number((normalFee * pricing.dynamicMultiplier).toFixed(2));
+  const totalFee = Number((normalFee * (pricing.mode === "DYNAMIC" ? pricing.dynamicMultiplier : 1)).toFixed(2));
   const calculatedDriverPayout = pricing.driverBase + billableKm * pricing.driverPerKm + extraStops * pricing.driverExtraStop;
   const percentageDriverPayout = totalFee * (1 - pricing.platformPercent / 100);
   const driverPayout = Number(Math.min(totalFee, calculatedDriverPayout > 0 ? calculatedDriverPayout : percentageDriverPayout).toFixed(2));
