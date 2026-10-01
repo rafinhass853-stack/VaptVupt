@@ -137,6 +137,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /driverPayouts/{payoutId} { allow read: if isAdmin(); allow write: if false; }
+
+    match /driverApplications/{applicationId} { allow read: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid); allow write: if false; }
+
     match /driverEarnings/{earningId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.driverId == request.auth.uid);
       allow write: if false;
