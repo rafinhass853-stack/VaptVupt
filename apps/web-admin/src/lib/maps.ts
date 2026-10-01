@@ -4,6 +4,12 @@
 
 export interface GeocodedAddress {
   displayName: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   lat: number;
   lng: number;
 }
@@ -20,7 +26,7 @@ const OSRM_BASE = "https://router.project-osrm.org";
 export async function autocompleteAddress(query: string): Promise<GeocodedAddress[]> {
   if (!query || query.trim().length < 3) return [];
   const url =
-    `${NOMINATIM_BASE}/search?format=jsonv2&limit=5&countrycodes=br&q=` +
+    `${NOMINATIM_BASE}/search?format=jsonv2&limit=5&addressdetails=1&countrycodes=br&q=` +
     encodeURIComponent(query.trim());
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -29,6 +35,12 @@ export async function autocompleteAddress(query: string): Promise<GeocodedAddres
   const data = (await response.json()) as any[];
   return (data || []).map((item) => ({
     displayName: item.display_name,
+    street: item.address?.road || item.address?.pedestrian,
+    number: item.address?.house_number,
+    neighborhood: item.address?.neighbourhood || item.address?.suburb,
+    city: item.address?.city || item.address?.town || item.address?.municipality,
+    state: item.address?.state,
+    zipCode: item.address?.postcode,
     lat: Number(item.lat),
     lng: Number(item.lon),
   }));
