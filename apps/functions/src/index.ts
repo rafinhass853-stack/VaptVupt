@@ -267,7 +267,7 @@ export const quoteDeliveryPrice = onCall(async (request) => {
     pricing.baseFee +
     billableKm * pricing.perKmFee +
     extraStops * pricing.extraStopFee;
-  const totalFee = Math.max(pricing.minimumFee, calculatedFee);
+  const totalFee = Number((Math.max(pricing.minimumFee, calculatedFee) * (pricing.mode === "DYNAMIC" ? pricing.dynamicMultiplier : 1)).toFixed(2));
   return {
     totalFee,
     distanceKm,
@@ -335,6 +335,7 @@ export const acceptOrder = onCall(async (request) => {
     });
 
     transaction.update(driverRef, {
+      status: "IN_TRIP",
       driverStatus: "IN_TRIP",
       activeOrderId: orderId,
       activeStoreId: order.storeId || null,
@@ -497,6 +498,7 @@ export const verifyDeliveryCode = onCall(async (request) => {
     }
 
     transaction.update(driverRef, {
+      status: "ONLINE",
       driverStatus: "ONLINE",
       activeOrderId: null,
       activeStoreId: null,
