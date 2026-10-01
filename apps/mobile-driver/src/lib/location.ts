@@ -46,6 +46,7 @@ async function updateDriverLocation(driverId: string, lat: number, lng: number) 
     lat,
     lng,
     lastLocationAt: new Date(),
+    lastLocationUpdate: new Date(),
   });
 }
 
