@@ -305,7 +305,7 @@ export const acceptOrder = onCall(async (request) => {
     if (order.offerExpiresAt && order.offerExpiresAt.toDate() < new Date()) {
       throw new HttpsError("deadline-exceeded", "Tempo para aceitar expirou.");
     }
-    if (driver.approved !== true) {\n      throw new HttpsError("permission-denied", "Seu cadastro ainda não foi aprovado.");\n    }\n    if (driver.driverStatus !== "ONLINE" && driver.status !== "ONLINE") {
+    if (driver["blocked"] === true) {\n      throw new HttpsError("permission-denied", "Seu cadastro está indisponível.");\n    }\n    if (driver.approved !== true) {\n      throw new HttpsError("permission-denied", "Seu cadastro ainda não foi aprovado.");\n    }\n    if (driver.driverStatus !== "ONLINE" && driver.status !== "ONLINE") {
       throw new HttpsError("failed-precondition", "Você precisa estar online.");
     }
     if (driver.activeOrderId) {
