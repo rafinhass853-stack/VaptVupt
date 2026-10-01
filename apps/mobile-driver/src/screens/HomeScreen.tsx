@@ -88,12 +88,14 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       if (value) {
-        await updateDoc(doc(db, "drivers", user.uid), { status: "ONLINE" });
         try {
           await startLocationTracking(user.uid);
         } catch (locErr: any) {
-          Alert.alert("Aviso", "Não foi possível ativar a localização: " + locErr.message);
+          Alert.alert("Localização necessária", locErr.message || "Autorize a localização em primeiro e segundo plano para ficar online.");
+          return;
         }
+        const setAvailability = httpsCallable(functions, "setDriverAvailability");
+        await setAvailability({ online: true });
         setIsOnline(true);
       } else {
         if (driver?.activeOrderId) {
@@ -103,7 +105,8 @@ export default function HomeScreen() {
           );
           return;
         }
-        await updateDoc(doc(db, "drivers", user.uid), { status: "OFFLINE" });
+        const setAvailability = httpsCallable(functions, "setDriverAvailability");
+        await setAvailability({ online: false });
         await stopLocationTracking();
         setIsOnline(false);
       }
