@@ -1181,6 +1181,6 @@ export const createStore = onCall(async (request) => {
 });
 
 // Plataforma operacional avançada
-export { getOperationsKpis, getFinanceSummary, registerDriverLocation, driverHeartbeat, monitorOperationalAlerts, createSupportTicket } from "./platformFunctions";
+export { getOperationsKpis, getFinanceSummary, registerDriverLocation, driverHeartbeat, setDriverAvailability, monitorOperationalAlerts, createSupportTicket } from "./platformFunctions";
 
 export { approveDriver, setDriverBlocked, updatePricingSettings, storeHeartbeat, expireStoreOnline, createDriverApplication, processDailyDriverPayouts, markDriverPayoutPaid } from "./adminFunctions";
