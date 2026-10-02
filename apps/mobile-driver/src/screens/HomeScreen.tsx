@@ -12,7 +12,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import {
   doc,
-  updateDoc,
   onSnapshot,
   collection,
   query,
