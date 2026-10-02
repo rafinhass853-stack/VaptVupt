@@ -120,7 +120,8 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       if (value) {
-        await updateDoc(doc(db, "drivers", user.uid), { status: "ONLINE", driverStatus: "ONLINE" });
+        const availability = httpsCallable(functions, "setDriverAvailability");
+        await availability({ online: true });
         try {
           await startLocationTracking(user.uid);
         } catch (locErr: any) {
@@ -135,7 +136,8 @@ export default function HomeScreen() {
           );
           return;
         }
-        await updateDoc(doc(db, "drivers", user.uid), { status: "OFFLINE", driverStatus: "OFFLINE" });
+        const availability = httpsCallable(functions, "setDriverAvailability");
+        await availability({ online: false });
         await stopLocationTracking();
         setIsOnline(false);
       }
