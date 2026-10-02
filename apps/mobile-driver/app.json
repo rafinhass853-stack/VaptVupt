@@ -6,7 +6,17 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "vaptvupt",
-    "plugins": ["expo-location", "expo-notifications"],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      "expo-notifications"
+    ],
     "splash": {
       "backgroundColor": "#111827",
       "resizeMode": "contain"
@@ -22,8 +32,14 @@
       "adaptiveIcon": {
         "backgroundColor": "#e30613"
       },
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
-    "web": { "favicon": "./assets/favicon.png" }
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }
