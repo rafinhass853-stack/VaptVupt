@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./firebase";
 import { startBackgroundLocation, stopBackgroundLocation } from "./backgroundLocation";
 
 let subscription: Location.LocationSubscription | null = null;
@@ -17,7 +17,7 @@ export async function startLocationTracking(driverId: string) {
     accuracy: Location.Accuracy.High,
   });
 
-  await updateDriverLocation(driverId, current.coords.latitude, current.coords.longitude);
+  await updateDriverLocation(current.coords.latitude, current.coords.longitude, current.coords.accuracy ?? 0);
 
   try { await startBackgroundLocation(driverId); } catch (error) { console.warn("Background location indisponível:", error); }
 
@@ -30,9 +30,9 @@ export async function startLocationTracking(driverId: string) {
     async (position) => {
       try {
         await updateDriverLocation(
-          driverId,
           position.coords.latitude,
-          position.coords.longitude
+          position.coords.longitude,
+          position.coords.accuracy ?? 0
         );
       } catch (error) {
         console.warn("Erro ao atualizar localização:", error);
@@ -41,13 +41,9 @@ export async function startLocationTracking(driverId: string) {
   );
 }
 
-async function updateDriverLocation(driverId: string, lat: number, lng: number) {
-  await updateDoc(doc(db, "drivers", driverId), {
-    lat,
-    lng,
-    lastLocationAt: new Date(),
-    lastLocationUpdate: new Date(),
-  });
+async function updateDriverLocation(lat: number, lng: number, accuracy: number) {
+  const updateLocation = httpsCallable(functions, "registerDriverLocation");
+  await updateLocation({ lat, lng, accuracy });
 }
 
 export async function stopLocationTracking() {
