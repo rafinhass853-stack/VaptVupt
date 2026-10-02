@@ -17,6 +17,8 @@ import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
@@ -41,15 +43,45 @@ export default function HomeScreen() {
     if (!user || !isOnline) return;
     const interval = setInterval(async () => {
       try {
-        await updateDoc(doc(db, "drivers", user.uid), {
-          lastHeartbeat: new Date(),
-        });
+        const heartbeat = httpsCallable(functions, "driverHeartbeat");
+        await heartbeat({});
       } catch (err) {
         console.error("Heartbeat error:", err);
       }
     }, 30000);
     return () => clearInterval(interval);
   }, [user, isOnline]);
+
+  // KPIs reais do dia: pedidos concluídos do próprio entregador.
+  const [todayDeliveries, setTodayDeliveries] = useState(0);
+  const [todayEarnings, setTodayEarnings] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "orders"),
+      where("assignedDriverId", "==", user.uid),
+      where("status", "==", "DELIVERED"),
+      orderBy("deliveredAt", "desc"),
+      limit(100)
+    );
+    return onSnapshot(q, (snapshot) => {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      let deliveries = 0;
+      let earnings = 0;
+      snapshot.forEach((snap) => {
+        const data = snap.data();
+        const deliveredAt = data.deliveredAt?.toDate?.();
+        if (deliveredAt && deliveredAt >= start) {
+          deliveries += 1;
+          earnings += Number(data.finance?.driverPayout ?? data.pricing?.driverPayout ?? 0);
+        }
+      });
+      setTodayDeliveries(deliveries);
+      setTodayEarnings(earnings);
+    });
+  }, [user]);
 
   // Escuta ofertas
   useEffect(() => {
@@ -203,7 +235,7 @@ export default function HomeScreen() {
             <View style={[styles.statIcon, { backgroundColor: "rgba(59,130,246,0.2)" }]}>
               <Ionicons name="bicycle" size={22} color="#3b82f6" />
             </View>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{todayDeliveries}</Text>
             <Text style={styles.statLabel}>Entregas hoje</Text>
           </View>
 
@@ -211,7 +243,7 @@ export default function HomeScreen() {
             <View style={[styles.statIcon, { backgroundColor: "rgba(16,185,129,0.2)" }]}>
               <Ionicons name="cash" size={22} color={theme.colors.brand} />
             </View>
-            <Text style={styles.statValue}>R$ 0,00</Text>
+            <Text style={styles.statValue}>R$ {todayEarnings.toFixed(2).replace(".", ",")}</Text>
             <Text style={styles.statLabel}>Ganhos hoje</Text>
           </View>
         </View>
