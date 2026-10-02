@@ -24,6 +24,7 @@ export default function TripMap({
 }: TripMapProps) {
   const webRef = useRef<WebView>(null);
   const [routing, setRouting] = useState(true);
+  const initialHtmlRef = useRef<string | null>(null);
 
   const target = useMemo(
     () => activeLeg === "TO_CUSTOMER"
@@ -40,6 +41,8 @@ export default function TripMap({
       }
       true;
     `);
+    const timeout = setTimeout(() => setRouting(false), 1800);
+    return () => clearTimeout(timeout);
   }, [driverLat, driverLng, target.lat, target.lng, target.label]);
 
   const html = `
@@ -125,12 +128,14 @@ export default function TripMap({
     </html>
   `;
 
+  if (initialHtmlRef.current === null) initialHtmlRef.current = html;
+
   return (
     <View style={styles.container}>
       <WebView
         ref={webRef}
         originWhitelist={["*"]}
-        source={{ html }}
+        source={{ html: initialHtmlRef.current }}
         style={styles.webview}
         scrollEnabled={false}
         onLoadEnd={() => setRouting(false)}
