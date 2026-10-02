@@ -24,22 +24,33 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "O VaptVupt usa sua localização para mostrar sua posição no mapa e recalcular a rota da entrega.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "O VaptVupt usa sua localização em segundo plano durante entregas ativas para atualizar o mapa e o ETA."
+        "NSLocationWhenInUseUsageDescription": "O VaptVupt usa sua localizaÃ§Ã£o para mostrar sua posiÃ§Ã£o no mapa e recalcular a rota da entrega.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O VaptVupt usa sua localizaÃ§Ã£o em segundo plano durante entregas ativas para atualizar o mapa e o ETA."
       }
     },
     "android": {
+      "package": "com.vaptvupt.driver",
       "adaptiveIcon": {
         "backgroundColor": "#e30613"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1b06d714-16bd-4e62-a591-1fb9a22e6031"
+      }
     }
   }
 }
