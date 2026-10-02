@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { stopLocationTracking } from "../lib/location";
 import { auth, db } from "../lib/firebase";
 
 export interface DriverData {
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    try { await stopLocationTracking(); } catch {}
     await signOut(auth);
     setDriver(null);
   };
