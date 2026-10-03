@@ -26,25 +26,30 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4"
+      className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto bg-black/50 p-4"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} max-h-[90vh] overflow-auto`}
+        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} max-h-[90vh] min-h-0 flex flex-col overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex flex-shrink-0 items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-800">{title}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
+            aria-label="Fechar"
           >
             <X size={24} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          {children}
+        </div>
+
         {footer && (
-          <div className="p-6 border-t border-slate-200 bg-slate-50">
+          <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 p-6">
             {footer}
           </div>
         )}
