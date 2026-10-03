@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -24,7 +25,7 @@ export function Modal({
     lg: "max-w-2xl",
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[2000] overflow-y-auto bg-black/50 p-4"
       onClick={onClose}
@@ -33,7 +34,7 @@ export function Modal({
         className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] min-h-0 mx-auto grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-shrink-0 items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-800">{title}</h2>
           <button
             onClick={onClose}
@@ -49,11 +50,12 @@ export function Modal({
         </div>
 
         {footer && (
-          <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 p-6">
+          <div className="border-t border-slate-200 bg-slate-50 p-6">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
