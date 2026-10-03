@@ -600,7 +600,7 @@ function CreateCourierModal({
         </div>
       }
     >
-      <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+      <div className="space-y-5">
         {/* Acesso */}
         <Section title="Acesso">
           <div className="col-span-2">
