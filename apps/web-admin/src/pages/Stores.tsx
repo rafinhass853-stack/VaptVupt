@@ -465,7 +465,7 @@ function NewStoreModal({
         </div>
       }
     >
-      <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+      <div className="space-y-5">
         {/* Dados da Loja */}
         <Section title="Dados da Loja">
           <div className="col-span-2">
