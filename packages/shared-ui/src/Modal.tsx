@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -24,13 +25,13 @@ export function Modal({
     lg: "max-w-2xl",
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4"
+      className="fixed inset-0 z-[2000] overflow-y-auto bg-black/50 p-4"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} max-h-[90vh] overflow-auto`}
+        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] min-h-0 mx-auto grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -38,17 +39,23 @@ export function Modal({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
+            aria-label="Fechar"
           >
             <X size={24} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-6">
+          {children}
+        </div>
+
         {footer && (
-          <div className="p-6 border-t border-slate-200 bg-slate-50">
+          <div className="border-t border-slate-200 bg-slate-50 p-6">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
