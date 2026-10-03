@@ -26,11 +26,11 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[2000] overflow-y-auto bg-black/50 px-4 py-8"
+      className="fixed inset-0 z-[2000] overflow-y-auto bg-black/50 p-4"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} max-h-[calc(100vh-4rem)] min-h-0 mx-auto grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden`}
+        className={`bg-white rounded-2xl shadow-2xl w-full ${sizes[size]} h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] min-h-0 mx-auto grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-shrink-0 items-center justify-between p-6 border-b border-slate-200">
