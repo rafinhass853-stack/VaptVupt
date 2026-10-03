@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { LogIn, AlertCircle, Shield, MapPin, Truck } from "lucide-react";
+import { LogIn, AlertCircle, MapPin, Truck } from "lucide-react";
 import { Button } from "@vaptvupt/shared-ui";
 
 export default function Login() {

@@ -87,10 +87,32 @@ export default function ActiveTripScreen() {
     } finally { setVerifying(false); }
   };
 
-  const openMaps = (lat: number, lng: number, label: string) => {
-    const scheme = Platform.select({ ios: "maps:0,0?q=", android: "geo:0,0?q=" });
-    const url = `${scheme}${lat},${lng}(${encodeURIComponent(label)})`;
-    Linking.openURL(url);
+  const openNavigation = async (lat: number, lng: number, label: string) => {
+    const encodedLabel = encodeURIComponent(label);
+    const urls = Platform.select({
+      ios: [
+        "comgooglemaps://?daddr=" + lat + "," + lng + "&directionsmode=driving",
+        "waze://?ll=" + lat + "," + lng + "&navigate=yes",
+        "http://maps.apple.com/?daddr=" + lat + "," + lng,
+      ],
+      android: [
+        "google.navigation:q=" + lat + "," + lng,
+        "waze://?ll=" + lat + "," + lng + "&navigate=yes",
+        "geo:" + lat + "," + lng + "?q=" + lat + "," + lng + "(" + encodedLabel + ")",
+      ],
+      default: [
+        "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng,
+      ],
+    }) || [];
+    for (const url of urls) {
+      try {
+        if (await Linking.canOpenURL(url)) {
+          await Linking.openURL(url);
+          return;
+        }
+      } catch {}
+    }
+    Alert.alert("Navegação", "Não foi possível abrir um aplicativo de mapas neste aparelho.");
   };
 
   if (loading) return (
@@ -162,7 +184,7 @@ export default function ActiveTripScreen() {
                 <Text style={styles.stopName}>{stop.customerName}</Text>
                 <Text style={styles.stopAddress} numberOfLines={1}>{stop.address}</Text>
               </View>
-              <TouchableOpacity style={styles.navigateBtn} onPress={() => openMaps(stop.lat, stop.lng, stop.customerName)}>
+              <TouchableOpacity style={styles.navigateBtn} onPress={() => openNavigation(stop.lat, stop.lng, stop.customerName)}>
                 <Ionicons name="navigate" size={18} color="#fff" />
               </TouchableOpacity>
             </View>

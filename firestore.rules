@@ -40,7 +40,7 @@ service cloud.firestore {
       // Update: o próprio dono (SEM alterar balance/uid) ou admin
       allow update: if (isAdmin()) 
         || (isStoreOwner(storeId) 
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['balance', 'uid']));
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'email', 'address']));
 
       // Delete: somente admin
       allow delete: if isAdmin();
@@ -64,9 +64,8 @@ service cloud.firestore {
       //   - NÃO pode alterar: approved, blocked, blockReason, rating, totalDeliveries (campos de admin)
       allow update: if isAdmin() 
         || (isOwnDriver(driverId) 
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-              'approved', 'blocked', 'blockReason', 'rating', 'totalDeliveries',
-              'acceptanceRate', 'cancellationRate', 'createdAt', 'activeStoreId'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name', 'cpf', 'phone', 'plate', 'vehicleType', 'fcmToken'
             ]));
 
       allow delete: if isAdmin();
